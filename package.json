@@ -1,0 +1,38 @@
+{
+  "name": "@omdxp/jslog",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omdxp/jslog.git"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx watch src/index.ts",
+    "test": "tsx src/examples/basic.ts",
+    "test:advanced": "tsx src/examples/advanced.ts",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "slog",
+    "logging",
+    "structured logging"
+  ],
+  "author": "omdxp",
+  "license": "MIT",
+  "description": "A structured logging library for Node.js applications inspired by Go's log/slog.",
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsup": "^8.0.1",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
