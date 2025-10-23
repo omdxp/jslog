@@ -80,7 +80,7 @@ git push origin $CURRENT_BRANCH
 git push origin "v$NEW_VERSION"
 
 echo ""
-echo -e "${GREEN} Released v$NEW_VERSION!${NC}"
+echo -e "${GREEN}Released v$NEW_VERSION!${NC}"
 echo ""
 echo -e "Monitor the release:"
 echo -e "${BLUE}→ Actions: ${NC}https://github.com/omdxp/jslog/actions"
