@@ -19,7 +19,7 @@ echo ""
 
 # Check if git is clean
 if [ -n "$(git status --porcelain)" ]; then
-  echo -e "${RED} Git working directory is not clean!${NC}"
+  echo -e "${RED}Git working directory is not clean!${NC}"
   echo "Commit or stash your changes first."
   git status --short
   exit 1
