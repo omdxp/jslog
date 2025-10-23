@@ -1,31 +1,63 @@
 {
   "name": "@omdxp/jslog",
   "version": "0.1.0",
+  "description": "Structured logging for Node.js that makes Go's log/slog look basic. Features file rotation, buffering, sampling, filtering, async handlers, middleware, and 20+ features Go slog doesn't have!",
   "main": "dist/index.js",
+  "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/omdxp/jslog.git"
+  },
+  "homepage": "https://github.com/omdxp/jslog#readme",
+  "bugs": {
+    "url": "https://github.com/omdxp/jslog/issues"
   },
   "scripts": {
     "build": "tsup",
     "dev": "tsx watch src/index.ts",
     "test": "tsx src/examples/basic.ts",
     "test:advanced": "tsx src/examples/advanced.ts",
+    "test:beast": "tsx src/examples/beast-mode.ts",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
     "slog",
     "logging",
-    "structured logging"
+    "structured-logging",
+    "logger",
+    "log",
+    "json",
+    "console",
+    "typescript",
+    "file-logging",
+    "log-rotation",
+    "middleware",
+    "async",
+    "buffering",
+    "sampling",
+    "filtering",
+    "colorful",
+    "performance",
+    "observability",
+    "tracing",
+    "correlation-id"
   ],
   "author": "omdxp",
   "license": "MIT",
-  "description": "A structured logging library for Node.js applications inspired by Go's log/slog.",
   "devDependencies": {
     "@types/node": "^20.11.0",
     "tsup": "^8.0.1",
