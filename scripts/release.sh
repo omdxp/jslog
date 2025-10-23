@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#  Quick Release Script for jslog
+# Quick Release Script for jslog
 # Usage: ./scripts/release.sh [patch|minor|major]
 
 set -e  # Exit on error
