@@ -56,7 +56,7 @@ npm run build
 npm test
 
 echo ""
-echo -e "${GREEN} All tests passed!${NC}"
+echo -e "${GREEN}All tests passed!${NC}"
 
 # Update CHANGELOG if it exists
 if [ -f "CHANGELOG.md" ]; then
