@@ -61,7 +61,7 @@ echo -e "${GREEN}All tests passed!${NC}"
 # Update CHANGELOG if it exists
 if [ -f "CHANGELOG.md" ]; then
   echo ""
-  echo -e "${YELLOW} Don't forget to update CHANGELOG.md!${NC}"
+  echo -e "${YELLOW}Don't forget to update CHANGELOG.md!${NC}"
   echo "Add release notes for v$NEW_VERSION"
   read -p "Press enter when ready to continue..."
 fi
