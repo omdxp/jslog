@@ -9,7 +9,7 @@ import {
   String,
   Int,
   Bool,
-  Error as ErrorAttr,
+  Err,
   info,
   warn,
   error,
@@ -27,7 +27,7 @@ const jsonLogger = New(new JSONHandler({ level: Level.DEBUG }));
 SetDefault(jsonLogger);
 
 info("User logged in", String("user", "alice"), String("ip", "192.168.1.1"));
-error("Database error", ErrorAttr(new Error("Connection timeout")));
+error("Database error", Err(new Error("Connection timeout")));
 
 console.log("\n=== With Attributes ===");
 const logger = New(new TextHandler({ level: Level.DEBUG }));

@@ -105,7 +105,7 @@ export {
   Duration,
   Any,
   Group,
-  Error,
+  Err,
   attr,
 } from "./logger";
 

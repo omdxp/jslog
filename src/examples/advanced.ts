@@ -17,7 +17,7 @@ import {
   Time,
   Duration,
   Group,
-  Error as ErrorAttr,
+  Err,
   Any,
   New,
 } from "../index";
@@ -66,11 +66,7 @@ console.log("\n=== Error Handling ===");
 try {
   throw new Error("Database connection failed");
 } catch (err) {
-  logger3.error(
-    "Operation failed",
-    ErrorAttr(err as Error),
-    String("retry", "true")
-  );
+  logger3.error("Operation failed", Err(err as Error), String("retry", "true"));
 }
 
 console.log("\n=== Nested Groups ===");

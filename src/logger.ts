@@ -73,7 +73,7 @@ export const Group = (key: string, ...attrs: Attr[]): Attr => {
 /**
  * Error attribute helpers
  */
-export const Error = (err: Error | string): Attr => {
+export const Err = (err: Error | string): Attr => {
   if (typeof err === "string") {
     return attr("error", err);
   }
