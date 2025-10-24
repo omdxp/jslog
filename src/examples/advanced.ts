@@ -92,6 +92,10 @@ const logger4 = New(
       if (attr.key === "password") {
         return { key: attr.key, value: "***REDACTED***" };
       }
+      // Rename msg to message
+      if (attr.key === "msg") {
+        return { key: "message", value: attr.value };
+      }
       // Add prefix to all attributes in "secure" group
       if (groups.includes("secure")) {
         return { key: `secure_${attr.key}`, value: attr.value };
@@ -113,6 +117,25 @@ secureLogger.info(
   String("token", "abc123"),
   String("key", "xyz789")
 );
+
+console.log("\n=== Replace Attribute with JSON (key renaming) ===");
+const logger4json = New(
+  new JSONHandler({
+    level: Level.DEBUG,
+    replaceAttr: (groups, attr) => {
+      // Rename keys to match common logging standards
+      if (attr.key === "msg") {
+        return { key: "message", value: attr.value };
+      }
+      if (attr.key === "time") {
+        return { key: "timestamp", value: attr.value };
+      }
+      return attr;
+    },
+  })
+);
+
+logger4json.info("Testing key renaming", String("user", "bob"));
 
 console.log("\n=== Multi Handler ===");
 const textHandler = new TextHandler({ level: Level.INFO });

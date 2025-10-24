@@ -65,13 +65,20 @@ export class FileHandler implements Handler {
     let line: string;
 
     if (this.format === "json") {
-      const obj: any = {
-        time: record.time.toISOString(),
-        level: Level[record.level],
-        msg: record.message,
-      };
+      const obj: any = {};
 
-      // Add source if enabled
+      // Time
+      const timeAttr = this.processAttr({ key: "time", value: record.time });
+      obj[timeAttr.key] = record.time.toISOString();
+
+      // Level
+      const levelAttr = this.processAttr({
+        key: "level",
+        value: Level[record.level],
+      });
+      obj[levelAttr.key] = levelAttr.value;
+
+      // Source (if addSource is enabled)
       if (this.addSource && record.source) {
         const sourceObj = {
           function: record.source.function,
@@ -82,8 +89,12 @@ export class FileHandler implements Handler {
           key: "source",
           value: sourceObj,
         });
-        obj.source = sourceAttr.value;
+        obj[sourceAttr.key] = sourceAttr.value;
       }
+
+      // Message
+      const msgAttr = this.processAttr({ key: "msg", value: record.message });
+      obj[msgAttr.key] = msgAttr.value;
 
       for (const attr of record.attrs) {
         const processed = this.processAttr(attr);
@@ -91,12 +102,20 @@ export class FileHandler implements Handler {
       }
       line = JSON.stringify(obj) + "\n";
     } else {
-      const parts = [
-        `time=${record.time.toISOString()}`,
-        `level=${Level[record.level]}`,
-      ];
+      const parts: string[] = [];
 
-      // Add source if enabled
+      // Time
+      const timeAttr = this.processAttr({ key: "time", value: record.time });
+      parts.push(`${timeAttr.key}=${record.time.toISOString()}`);
+
+      // Level
+      const levelAttr = this.processAttr({
+        key: "level",
+        value: Level[record.level],
+      });
+      parts.push(`${levelAttr.key}=${levelAttr.value}`);
+
+      // Source (if addSource is enabled)
       if (this.addSource && record.source) {
         const sourceStr = `${record.source.file || "?"}:${
           record.source.line || 0
@@ -105,10 +124,12 @@ export class FileHandler implements Handler {
           key: "source",
           value: sourceStr,
         });
-        parts.push(`source=${sourceAttr.value}`);
+        parts.push(`${sourceAttr.key}=${sourceAttr.value}`);
       }
 
-      parts.push(`msg="${record.message}"`);
+      // Message
+      const msgAttr = this.processAttr({ key: "msg", value: record.message });
+      parts.push(`${msgAttr.key}="${msgAttr.value}"`);
 
       for (const attr of record.attrs) {
         const processed = this.processAttr(attr);
