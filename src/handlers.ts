@@ -60,7 +60,7 @@ export class TextHandler extends BaseHandler {
     // Time
     const timeAttr = this.processAttr({ key: "time", value: record.time });
     parts.push(
-      `time=${
+      `${timeAttr.key}=${
         timeAttr.value instanceof Date
           ? (timeAttr.value as Date).toISOString()
           : timeAttr.value
@@ -72,7 +72,7 @@ export class TextHandler extends BaseHandler {
       key: "level",
       value: Level[record.level],
     });
-    parts.push(`level=${levelAttr.value}`);
+    parts.push(`${levelAttr.key}=${levelAttr.value}`);
 
     // Source (if addSource is enabled and source info is available)
     if (this.addSource && record.source) {
@@ -83,12 +83,12 @@ export class TextHandler extends BaseHandler {
         key: "source",
         value: sourceStr,
       });
-      parts.push(`source=${sourceAttr.value}`);
+      parts.push(`${sourceAttr.key}=${sourceAttr.value}`);
     }
 
     // Message
     const msgAttr = this.processAttr({ key: "msg", value: record.message });
-    parts.push(`msg="${msgAttr.value}"`);
+    parts.push(`${msgAttr.key}="${msgAttr.value}"`);
 
     // Handler-level attributes
     for (const attr of this.attrs) {
@@ -181,7 +181,7 @@ export class JSONHandler extends BaseHandler {
 
     // Time
     const timeAttr = this.processAttr({ key: "time", value: record.time });
-    obj.time =
+    obj[timeAttr.key] =
       timeAttr.value instanceof Date
         ? (timeAttr.value as Date).toISOString()
         : timeAttr.value;
@@ -191,7 +191,7 @@ export class JSONHandler extends BaseHandler {
       key: "level",
       value: Level[record.level],
     });
-    obj.level = levelAttr.value;
+    obj[levelAttr.key] = levelAttr.value;
 
     // Source (if addSource is enabled and source info is available)
     if (this.addSource && record.source) {
@@ -204,12 +204,12 @@ export class JSONHandler extends BaseHandler {
         key: "source",
         value: sourceObj,
       });
-      obj.source = sourceAttr.value;
+      obj[sourceAttr.key] = sourceAttr.value;
     }
 
     // Message
     const msgAttr = this.processAttr({ key: "msg", value: record.message });
-    obj.msg = msgAttr.value;
+    obj[msgAttr.key] = msgAttr.value;
 
     // Handler-level attributes
     for (const attr of this.attrs) {
