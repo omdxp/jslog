@@ -4,7 +4,6 @@
  */
 
 import {
-  Logger,
   Level,
   New,
   String,
@@ -39,7 +38,7 @@ import {
   maskEmail,
   setCorrelationId,
   CorrelationId,
-} from "../index.js";
+} from "../index";
 
 console.log(" BEAST MODE FEATURES - Go slog can't do this! \n");
 
