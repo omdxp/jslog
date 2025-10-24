@@ -1,4 +1,4 @@
-import { Handler, Record, Level, Attr } from "./logger.js";
+import { Handler, Record, Level, Attr } from "./logger";
 
 /**
  * Async handler for non-blocking log operations (Go can't do this easily!)

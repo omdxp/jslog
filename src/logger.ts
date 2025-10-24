@@ -93,7 +93,8 @@ export interface Record {
   message: string;
   level: Level;
   attrs: Attr[];
-  pc?: number; // Program counter (source location)
+  pc?: number; // Program counter (source location) - for compatibility
+  source?: Source; // Actual source location info
 }
 
 /**
@@ -103,6 +104,46 @@ export interface Source {
   function?: string;
   file?: string;
   line?: number;
+}
+
+/**
+ * Get source location from stack trace
+ */
+export function getSource(skipFrames: number = 0): Source | undefined {
+  try {
+    const err = new globalThis.Error();
+    const stack = err.stack?.split("\n") || [];
+
+    // Skip Error line, getSource line, and caller frames
+    const frameIndex = 2 + skipFrames;
+
+    if (frameIndex >= stack.length) {
+      return undefined;
+    }
+
+    const frame = stack[frameIndex];
+
+    // Parse stack frame (format varies by environment)
+    // Example: "    at functionName (file.ts:line:col)"
+    // or: "    at file.ts:line:col"
+    const match = frame.match(/at\s+(?:(.+?)\s+\()?(.+?):(\d+):\d+\)?/);
+
+    if (match) {
+      const functionName = match[1]?.trim();
+      const file = match[2]?.trim();
+      const line = parseInt(match[3], 10);
+
+      return {
+        function: functionName || undefined,
+        file: file || undefined,
+        line: isNaN(line) ? undefined : line,
+      };
+    }
+
+    return undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -174,6 +215,14 @@ export class Logger {
       level,
       attrs,
     };
+
+    // Capture source location if the handler supports it
+    // Skip: Error creation, getSource, logAttrs, calling method (info/debug/etc)
+    const source = getSource(3);
+    if (source) {
+      record.source = source;
+      record.pc = 1; // Set a non-zero PC to indicate source is available
+    }
 
     this.handler.handle(record);
   }

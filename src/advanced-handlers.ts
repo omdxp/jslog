@@ -1,4 +1,4 @@
-import { Handler, Record, Level, Attr } from "./logger.js";
+import { Handler, Record, Level, Attr, Value } from "./logger";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -11,6 +11,8 @@ export interface FileHandlerOptions {
   maxSize?: number; // Max size in bytes before rotation
   maxFiles?: number; // Max number of backup files
   format?: "text" | "json";
+  addSource?: boolean;
+  replaceAttr?: (groups: string[], attr: Attr) => Attr;
 }
 
 export class FileHandler implements Handler {
@@ -21,6 +23,9 @@ export class FileHandler implements Handler {
   private format: "text" | "json";
   private currentSize: number = 0;
   private stream: fs.WriteStream;
+  private addSource: boolean;
+  private replaceAttr?: (groups: string[], attr: Attr) => Attr;
+  private groups: string[] = [];
 
   constructor(options: FileHandlerOptions) {
     this.level = options.level ?? Level.INFO;
@@ -28,6 +33,8 @@ export class FileHandler implements Handler {
     this.maxSize = options.maxSize ?? 10 * 1024 * 1024; // 10MB default
     this.maxFiles = options.maxFiles ?? 5;
     this.format = options.format ?? "json";
+    this.addSource = options.addSource ?? false;
+    this.replaceAttr = options.replaceAttr;
 
     // Create directory if it doesn't exist
     const dir = path.dirname(this.filepath);
@@ -47,6 +54,13 @@ export class FileHandler implements Handler {
     return level >= this.level;
   }
 
+  private processAttr(attr: Attr): Attr {
+    if (this.replaceAttr) {
+      return this.replaceAttr(this.groups, attr);
+    }
+    return attr;
+  }
+
   handle(record: Record): void {
     let line: string;
 
@@ -56,18 +70,49 @@ export class FileHandler implements Handler {
         level: Level[record.level],
         msg: record.message,
       };
+
+      // Add source if enabled
+      if (this.addSource && record.source) {
+        const sourceObj = {
+          function: record.source.function,
+          file: record.source.file,
+          line: record.source.line,
+        };
+        const sourceAttr = this.processAttr({
+          key: "source",
+          value: sourceObj,
+        });
+        obj.source = sourceAttr.value;
+      }
+
       for (const attr of record.attrs) {
-        obj[attr.key] = attr.value;
+        const processed = this.processAttr(attr);
+        obj[processed.key] = this.serializeValue(processed.value);
       }
       line = JSON.stringify(obj) + "\n";
     } else {
       const parts = [
         `time=${record.time.toISOString()}`,
         `level=${Level[record.level]}`,
-        `msg="${record.message}"`,
       ];
+
+      // Add source if enabled
+      if (this.addSource && record.source) {
+        const sourceStr = `${record.source.file || "?"}:${
+          record.source.line || 0
+        }`;
+        const sourceAttr = this.processAttr({
+          key: "source",
+          value: sourceStr,
+        });
+        parts.push(`source=${sourceAttr.value}`);
+      }
+
+      parts.push(`msg="${record.message}"`);
+
       for (const attr of record.attrs) {
-        parts.push(`${attr.key}=${JSON.stringify(attr.value)}`);
+        const processed = this.processAttr(attr);
+        parts.push(`${processed.key}=${JSON.stringify(processed.value)}`);
       }
       line = parts.join(" ") + "\n";
     }
@@ -79,6 +124,44 @@ export class FileHandler implements Handler {
 
     this.stream.write(line);
     this.currentSize += line.length;
+  }
+
+  private serializeValue(value: Value): any {
+    if (value === null || value === undefined) {
+      return value;
+    }
+    if (
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean"
+    ) {
+      return value;
+    }
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    if (value instanceof Error) {
+      return {
+        message: value.message,
+        name: value.name,
+        stack: value.stack,
+      };
+    }
+    if (Array.isArray(value)) {
+      return value.map((v) => this.serializeValue(v));
+    }
+    if (typeof value === "object" && "key" in value && "value" in value) {
+      const attr = value as Attr;
+      return { [attr.key]: this.serializeValue(attr.value) };
+    }
+    if (typeof value === "object") {
+      const result: any = {};
+      for (const [k, v] of Object.entries(value)) {
+        result[k] = this.serializeValue(v);
+      }
+      return result;
+    }
+    return value;
   }
 
   private rotate(): void {
@@ -108,11 +191,13 @@ export class FileHandler implements Handler {
   }
 
   withAttrs(_attrs: Attr[]): Handler {
-    return this; // File handler doesn't support persistent attrs
+    // File handler doesn't support persistent attrs for simplicity
+    return this;
   }
 
   withGroup(_name: string): Handler {
-    return this; // File handler doesn't support groups
+    // File handler doesn't support groups for simplicity
+    return this;
   }
 
   close(): void {
@@ -311,6 +396,8 @@ export class FilterHandler implements Handler {
 export interface ColorHandlerOptions {
   level?: Level;
   colorize?: boolean;
+  addSource?: boolean;
+  replaceAttr?: (groups: string[], attr: Attr) => Attr;
 }
 
 const COLORS = {
@@ -332,14 +419,25 @@ export class ColorHandler implements Handler {
   private colorize: boolean;
   private attrs: Attr[] = [];
   private groups: string[] = [];
+  private addSource: boolean;
+  private replaceAttr?: (groups: string[], attr: Attr) => Attr;
 
   constructor(options: ColorHandlerOptions = {}) {
     this.level = options.level ?? Level.INFO;
     this.colorize = options.colorize ?? true;
+    this.addSource = options.addSource ?? false;
+    this.replaceAttr = options.replaceAttr;
   }
 
   enabled(level: Level): boolean {
     return level >= this.level;
+  }
+
+  private processAttr(attr: Attr): Attr {
+    if (this.replaceAttr) {
+      return this.replaceAttr(this.groups, attr);
+    }
+    return attr;
   }
 
   handle(record: Record): void {
@@ -373,6 +471,21 @@ export class ColorHandler implements Handler {
     }
     parts.push(coloredLevel);
 
+    // Source (if addSource is enabled)
+    if (this.addSource && record.source) {
+      const sourceStr = `${record.source.file || "?"}:${
+        record.source.line || 0
+      }`;
+      const sourceAttr = this.processAttr({
+        key: "source",
+        value: sourceStr,
+      });
+      const coloredSource = this.colorize
+        ? `${COLORS.magenta}${String(sourceAttr.value)}${COLORS.reset}`
+        : String(sourceAttr.value);
+      parts.push(coloredSource);
+    }
+
     // Message (bright white)
     parts.push(
       this.colorize
@@ -383,14 +496,15 @@ export class ColorHandler implements Handler {
     // Attributes (dim)
     const attrParts: string[] = [];
     for (const attr of [...this.attrs, ...record.attrs]) {
+      const processed = this.processAttr(attr);
       const key =
         this.groups.length > 0
-          ? `${this.groups.join(".")}.${attr.key}`
-          : attr.key;
+          ? `${this.groups.join(".")}.${processed.key}`
+          : processed.key;
       const value =
-        typeof attr.value === "string"
-          ? `"${attr.value}"`
-          : JSON.stringify(attr.value);
+        typeof processed.value === "string"
+          ? `"${processed.value}"`
+          : JSON.stringify(processed.value);
       attrParts.push(
         this.colorize
           ? `${COLORS.dim}${key}=${value}${COLORS.reset}`
@@ -409,6 +523,8 @@ export class ColorHandler implements Handler {
     const handler = new ColorHandler({
       level: this.level,
       colorize: this.colorize,
+      addSource: this.addSource,
+      replaceAttr: this.replaceAttr,
     });
     handler.attrs = [...this.attrs, ...attrs];
     handler.groups = [...this.groups];
@@ -419,6 +535,8 @@ export class ColorHandler implements Handler {
     const handler = new ColorHandler({
       level: this.level,
       colorize: this.colorize,
+      addSource: this.addSource,
+      replaceAttr: this.replaceAttr,
     });
     handler.attrs = [...this.attrs];
     handler.groups = [...this.groups, name];

@@ -1,4 +1,4 @@
-import { Handler, Record, Level, Attr, Value, LevelVar } from "./logger.js";
+import { Handler, Record, Level, Attr, Value, LevelVar } from "./logger";
 
 /**
  * HandlerOptions configures a Handler
@@ -73,6 +73,18 @@ export class TextHandler extends BaseHandler {
       value: Level[record.level],
     });
     parts.push(`level=${levelAttr.value}`);
+
+    // Source (if addSource is enabled and source info is available)
+    if (this.addSource && record.source) {
+      const sourceStr = `${record.source.file || "?"}:${
+        record.source.line || 0
+      }`;
+      const sourceAttr = this.processAttr({
+        key: "source",
+        value: sourceStr,
+      });
+      parts.push(`source=${sourceAttr.value}`);
+    }
 
     // Message
     const msgAttr = this.processAttr({ key: "msg", value: record.message });
@@ -180,6 +192,20 @@ export class JSONHandler extends BaseHandler {
       value: Level[record.level],
     });
     obj.level = levelAttr.value;
+
+    // Source (if addSource is enabled and source info is available)
+    if (this.addSource && record.source) {
+      const sourceObj = {
+        function: record.source.function,
+        file: record.source.file,
+        line: record.source.line,
+      };
+      const sourceAttr = this.processAttr({
+        key: "source",
+        value: sourceObj,
+      });
+      obj.source = sourceAttr.value;
+    }
 
     // Message
     const msgAttr = this.processAttr({ key: "msg", value: record.message });
