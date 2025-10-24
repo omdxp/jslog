@@ -1,6 +1,6 @@
 {
   "name": "@omdxp/jslog",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Structured logging for Node.js that makes Go's log/slog look basic. Features file rotation, buffering, sampling, filtering, async handlers, middleware, and 20+ features Go slog doesn't have!",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
