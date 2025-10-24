@@ -5,7 +5,7 @@ A structured logging library for Node.js that makes Go's `log/slog` look basic.
 ## Why jslog?
 
 - Everything Go's slog has
-- Plus 20+ features Go slog doesn't have
+- Plus 20+ features Go `slog` doesn't have
 - File logging with auto-rotation
 - Buffering, sampling, filtering
 - Async handlers
