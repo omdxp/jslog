@@ -320,7 +320,6 @@ npm run dev
 
 This library closely mirrors Go's `log/slog` API:
 
-## Comparison with Go's log/slog
 
 | Go slog             | jslog                | Status        |
 | ------------------- | -------------------- | ------------- |
