@@ -1,4 +1,4 @@
-import { Attr, Value } from "./logger.js";
+import { Attr, Value } from "./logger";
 
 /**
  * Utility functions for jslog
