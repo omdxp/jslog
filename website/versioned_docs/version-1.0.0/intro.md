@@ -1,0 +1,78 @@
+---
+sidebar_position: 1
+slug: /
+---
+
+# Introduction
+
+Welcome to **jslog** - a structured logging library for Node.js that makes Go's log/slog look basic.
+
+## What is jslog?
+
+jslog is a production-ready structured logging library that brings the power of Go's log/slog to Node.js, with **20+ additional features** that Go slog doesn't have.
+
+### Key Features
+
+- **Everything Go's slog has** - Full API compatibility with Go's log/slog
+- **ColorHandler** - Beautiful, colorful console output
+- **FileHandler** - Write to files with automatic rotation
+- **BufferedHandler** - Batch logs for performance
+- **SamplingHandler** - Log only a percentage of messages
+- **FilterHandler** - Conditional logging based on custom logic
+- **AsyncHandler** - Non-blocking log operations
+- **Middleware Pattern** - Compose handlers with middleware
+- **Metrics** - Built-in logging statistics
+- **Deduplication** - Prevent log spam automatically
+- **Rate Limiting** - Automatic rate limiting
+- **Fluent API** - Chain attributes with AttrBuilder
+- **Performance Timers** - Built-in timing utilities
+- **Correlation IDs** - Global request/trace tracking
+- **HTTP Helpers** - Easy request/response logging
+- **System Info** - Environment and memory helpers
+- **Data Masking** - Built-in PII redaction
+- **Stack Traces** - Automatic stack trace capture
+- **Error Boundaries** - Catch handler errors safely
+
+## Quick Start
+
+### Installation
+
+```bash
+npm install @omdxp/jslog
+```
+
+### Basic Usage
+
+```typescript
+import { info, warn, error, String, Int } from '@omdxp/jslog';
+
+// Simple logging
+info('Application started', String('env', 'production'), Int('port', 3000));
+warn('High memory usage', Int('percentage', 85));
+error('Failed to connect', String('host', 'localhost'));
+```
+
+## Why Choose jslog?
+
+### Production Ready
+Built for production environments with performance, reliability, and observability in mind.
+
+### Zero Dependencies
+Lightweight and fast with no external dependencies in production.
+
+### Type Safe
+Full TypeScript support with complete type safety and IntelliSense.
+
+### Compatible
+API-compatible with Go's log/slog, making it familiar for Go developers.
+
+### Feature Rich
+20+ features that Go slog doesn't have, built specifically for Node.js environments.
+
+## Next Steps
+
+- **[Getting Started](./getting-started/installation)** - Install and set up jslog
+- **[Core Concepts](./core-concepts/loggers)** - Learn the fundamentals
+- **[API Reference](./api/overview)** - Explore the complete API
+- **[Examples](./examples/basic-usage)** - See jslog in action
+- **[jslog vs Go slog](./comparison)** - Feature comparison

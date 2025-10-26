@@ -1,0 +1,9 @@
+# Build outputs
+build/
+.docusaurus/
+
+# Dependencies
+node_modules/
+
+# Generated files
+package-lock.json
