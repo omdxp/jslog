@@ -6,3 +6,9 @@ coverage/
 .env
 .env.local
 *.tsbuildinfo
+
+# Docusaurus
+website/node_modules
+website/.docusaurus
+website/build
+website/.DS_Store
