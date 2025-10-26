@@ -1,8 +1,11 @@
 import { themes as prismThemes } from "prism-react-renderer";
 import type { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
+import versions from "./versions.json";
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
+
+const latestVersion = versions[versions.length - 1];
 
 const config: Config = {
   title: "jslog",
@@ -40,17 +43,15 @@ const config: Config = {
       {
         docs: {
           sidebarPath: "./sidebars.ts",
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
           editUrl: "https://github.com/omdxp/jslog/tree/main/website/",
-          lastVersion: "1.1.2",
+          lastVersion: latestVersion,
           versions: {
             current: {
               label: "Next",
               path: "next",
             },
             "1.1.2": {
-              label: "1.1.2 (latest)",
+              label: `${latestVersion} (latest)`,
               path: "/",
             },
             "1.0.0": {
