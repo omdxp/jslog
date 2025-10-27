@@ -123,7 +123,7 @@ All handlers support these options:
 ```typescript
 interface HandlerOptions {
   level?: Level | LevelVar;           // Minimum log level
-  addSource?: boolean;                // Add source location (future)
+  addSource?: boolean;                // Add source location
   replaceAttr?: (groups, attr) => Attr; // Transform attributes
 }
 ```
