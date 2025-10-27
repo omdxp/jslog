@@ -74,7 +74,7 @@ const config: Config = {
     },
     algolia: {
       appId: "4XJPUDYD67",
-      apiKey: "441a7cb0c919c58838b8e9fe6a063699",
+      apiKey: "06483be36f8a641189bbdda30a9e2e39",
       indexName: "jslog",
       contextualSearch: true,
     },
