@@ -73,8 +73,8 @@ const config: Config = {
       respectPrefersColorScheme: true,
     },
     algolia: {
-      appId: "4XJPUDYD67",
-      apiKey: "06483be36f8a641189bbdda30a9e2e39",
+      appId: "CHW4BZRW0J",
+      apiKey: "a36b29e2861f66a5004fa91227c97de8",
       indexName: "jslog",
       contextualSearch: true,
     },
