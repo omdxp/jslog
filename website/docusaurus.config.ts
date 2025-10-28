@@ -22,8 +22,6 @@ const config: Config = {
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: "/jslog/",
 
-  trailingSlash: true,
-
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
   organizationName: "omdxp", // Usually your GitHub org/user name.
