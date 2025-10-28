@@ -76,7 +76,10 @@ const config: Config = {
       appId: "CHW4BZRW0J",
       apiKey: "a36b29e2861f66a5004fa91227c97de8",
       indexName: "jslog",
-      contextualSearch: true,
+      contextualSearch: false,
+      searchParameters: {
+        facetFilters: [],
+      },
     },
     navbar: {
       title: "jslog",
