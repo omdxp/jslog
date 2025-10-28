@@ -22,6 +22,8 @@ const config: Config = {
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: "/jslog/",
 
+  trailingSlash: true,
+
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
   organizationName: "omdxp", // Usually your GitHub org/user name.
@@ -76,6 +78,7 @@ const config: Config = {
       appId: "CHW4BZRW0J",
       apiKey: "a36b29e2861f66a5004fa91227c97de8",
       indexName: "jslog",
+      contextualSearch: true,
     },
     navbar: {
       title: "jslog",
