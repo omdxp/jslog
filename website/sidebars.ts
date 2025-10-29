@@ -32,6 +32,7 @@ const sidebars: SidebarsConfig = {
         "advanced/sampling-handler",
         "advanced/filter-handler",
         "advanced/async-handler",
+        "advanced/context",
         "advanced/middleware",
         "advanced/utilities",
       ],

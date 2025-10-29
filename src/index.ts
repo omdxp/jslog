@@ -5,6 +5,8 @@
  * Now with features that make Go slog look basic!
  */
 
+import type { LogContext } from "./utils";
+
 // Core types and interfaces
 
 // Core types and classes
@@ -145,32 +147,48 @@ export function debug(msg: string, ...attrs: Attr[]): void {
   Default().debug(msg, ...attrs);
 }
 
-export function debugContext(msg: string, ...attrs: Attr[]): void {
-  Default().debugContext(msg, ...attrs);
+export function debugContext(
+  msg: string,
+  ctx: LogContext,
+  ...attrs: Attr[]
+): void {
+  Default().debugContext(msg, ctx, ...attrs);
 }
 
 export function info(msg: string, ...attrs: Attr[]): void {
   Default().info(msg, ...attrs);
 }
 
-export function infoContext(msg: string, ...attrs: Attr[]): void {
-  Default().infoContext(msg, ...attrs);
+export function infoContext(
+  msg: string,
+  ctx: LogContext,
+  ...attrs: Attr[]
+): void {
+  Default().infoContext(msg, ctx, ...attrs);
 }
 
 export function warn(msg: string, ...attrs: Attr[]): void {
   Default().warn(msg, ...attrs);
 }
 
-export function warnContext(msg: string, ...attrs: Attr[]): void {
-  Default().warnContext(msg, ...attrs);
+export function warnContext(
+  msg: string,
+  ctx: LogContext,
+  ...attrs: Attr[]
+): void {
+  Default().warnContext(msg, ctx, ...attrs);
 }
 
 export function error(msg: string, ...attrs: Attr[]): void {
   Default().error(msg, ...attrs);
 }
 
-export function errorContext(msg: string, ...attrs: Attr[]): void {
-  Default().errorContext(msg, ...attrs);
+export function errorContext(
+  msg: string,
+  ctx: LogContext,
+  ...attrs: Attr[]
+): void {
+  Default().errorContext(msg, ctx, ...attrs);
 }
 
 export function log(level: Level, msg: string, ...attrs: Attr[]): void {
