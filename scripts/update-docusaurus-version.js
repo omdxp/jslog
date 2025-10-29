@@ -26,28 +26,29 @@ if (!prevVersion) {
   process.exit(0);
 }
 
-// Find and replace the version config
-// Pattern: "1.1.2": { label: `${latestVersion} (latest)`, path: "/", }
-const prevPattern = new RegExp(
-  `"${prevVersion}":\\s*{[^}]*label:\\s*\`\\$\\{latestVersion\\}\\s*\\(latest\\)\`[^}]*path:\\s*"/"[^}]*}`,
-  "gs"
+// Find the old latest version config and replace it
+const oldLatestPattern = new RegExp(
+  `"${prevVersion}":\\s*\\{\\s*label:\\s*\\\`\\$\\{latestVersion\\}\\s*\\(latest\\)\\\`,\\s*path:\\s*"/",\\s*\\}`,
+  "m"
 );
 
-const newLatestConfig = `"${newVersion}": {
-              label: \`\${latestVersion} (latest)\`,
-              path: "/",
-            }`;
-
+// Replace old latest with regular version entry
 const oldVersionConfig = `"${prevVersion}": {
               label: "${prevVersion}",
               path: "${prevVersion}",
             }`;
 
-// Replace old latest with new latest + old version entry
-config = config.replace(
-  prevPattern,
-  `${newLatestConfig},\n            ${oldVersionConfig}`
-);
+config = config.replace(oldLatestPattern, oldVersionConfig);
+
+// Now add the new version as latest after "current" entry
+const currentPattern = /("current":\s*\{[^}]*\},)/;
+const newLatestConfig = `$1
+            "${newVersion}": {
+              label: \`\${latestVersion} (latest)\`,
+              path: "/",
+            },`;
+
+config = config.replace(currentPattern, newLatestConfig);
 
 fs.writeFileSync(configPath, config, "utf8");
 console.log(
