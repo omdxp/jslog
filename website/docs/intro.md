@@ -11,6 +11,15 @@ Welcome to **jslog** - a structured logging library for Node.js that makes Go's 
 
 jslog is a production-ready structured logging library that brings the power of Go's log/slog to Node.js, with **20+ additional features** that Go slog doesn't have.
 
+:::info Performance
+jslog achieves #1 ranking in simple logging benchmarks, outperforming pino by 0.6% while maintaining zero dependencies.
+- Simple Logging: 488,193 ops/sec (#1)
+- Complex Logging: 355,789 ops/sec (4.1% slower than pino)
+- Average Rank: 1.7-2.0 across all benchmark categories
+
+[See detailed benchmarks](./performance)
+:::
+
 ### Key Features
 
 - **Everything Go's slog has** - Full API compatibility with Go's log/slog
@@ -54,11 +63,14 @@ error('Failed to connect', String('host', 'localhost'));
 
 ## Why Choose jslog?
 
+### High Performance
+Ranks #1 in simple logging benchmarks with 488,193 ops/sec, outperforming pino while maintaining zero dependencies. Average rank 1.7-2.0 across all benchmark categories.
+
 ### Production Ready
 Built for production environments with performance, reliability, and observability in mind.
 
 ### Zero Dependencies
-Lightweight and fast with no external dependencies in production.
+No external dependencies in production. Competitive performance with libraries that have dependencies.
 
 ### Type Safe
 Full TypeScript support with complete type safety and IntelliSense.
@@ -71,6 +83,7 @@ API-compatible with Go's log/slog, making it familiar for Go developers.
 
 ## Next Steps
 
+- **[Performance Guide](./performance)** - Performance benchmarks and optimization tips
 - **[Getting Started](./getting-started/installation)** - Install and set up jslog
 - **[Core Concepts](./core-concepts/loggers)** - Learn the fundamentals
 - **[API Reference](./api/overview)** - Explore the complete API

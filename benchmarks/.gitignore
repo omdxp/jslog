@@ -8,4 +8,7 @@ yarn-error.log*
 
 # Ignore benchmark output files
 *.log
+
+# Auto-generated benchmark report
+BENCH.md
 benchmark-results/

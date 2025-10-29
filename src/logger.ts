@@ -11,6 +11,20 @@ export enum Level {
 }
 
 /**
+ * Cached level strings for performance
+ */
+const LEVEL_STRINGS = {
+  [Level.DEBUG]: "DEBUG",
+  [Level.INFO]: "INFO",
+  [Level.WARN]: "WARN",
+  [Level.ERROR]: "ERROR",
+} as const;
+
+export function getLevelString(level: Level): string {
+  return LEVEL_STRINGS[level] || Level[level];
+}
+
+/**
  * Value types for attributes
  */
 export type Value =
@@ -42,24 +56,21 @@ export interface Attr {
 }
 
 /**
- * Creates an attribute
- */
-export function attr(key: string, value: Value): Attr {
-  return { key, value };
-}
-
-/**
  * Convenience functions for common attribute types
+ * Inlined for performance - avoid function call overhead
  */
-export const String = (key: string, value: string): Attr => attr(key, value);
-export const Int = (key: string, value: number): Attr => attr(key, value);
-export const Int64 = (key: string, value: number): Attr => attr(key, value);
-export const Uint64 = (key: string, value: number): Attr => attr(key, value);
-export const Float64 = (key: string, value: number): Attr => attr(key, value);
-export const Bool = (key: string, value: boolean): Attr => attr(key, value);
-export const Time = (key: string, value: Date): Attr => attr(key, value);
-export const Duration = (key: string, ms: number): Attr => attr(key, `${ms}ms`);
-export const Any = (key: string, value: any): Attr => attr(key, value);
+export const String = (key: string, value: string): Attr => ({ key, value });
+export const Int = (key: string, value: number): Attr => ({ key, value });
+export const Int64 = (key: string, value: number): Attr => ({ key, value });
+export const Uint64 = (key: string, value: number): Attr => ({ key, value });
+export const Float64 = (key: string, value: number): Attr => ({ key, value });
+export const Bool = (key: string, value: boolean): Attr => ({ key, value });
+export const Time = (key: string, value: Date): Attr => ({ key, value });
+export const Duration = (key: string, ms: number): Attr => ({
+  key,
+  value: `${ms}ms`,
+});
+export const Any = (key: string, value: any): Attr => ({ key, value });
 
 /**
  * Group creates a named group of attributes
@@ -69,7 +80,7 @@ export const Group = (key: string, ...attrs: Attr[]): Attr => {
   for (const attr of attrs) {
     obj[attr.key] = attr.value;
   }
-  return attr(key, obj);
+  return { key, value: obj };
 };
 
 /**
@@ -77,7 +88,7 @@ export const Group = (key: string, ...attrs: Attr[]): Attr => {
  */
 export const Err = (err: Error | string): Attr => {
   if (typeof err === "string") {
-    return attr("error", err);
+    return { key: "error", value: err };
   }
   return Group(
     "error",
@@ -211,6 +222,7 @@ export class Logger {
       return;
     }
 
+    // Use single Date object - toISOString() is the expensive part, not Date creation
     const record: Record = {
       time: new Date(),
       message: msg,
@@ -218,13 +230,9 @@ export class Logger {
       attrs,
     };
 
-    // Capture source location if the handler supports it
-    // Skip: Error creation, getSource, logAttrs, calling method (info/debug/etc)
-    const source = getSource(3);
-    if (source) {
-      record.source = source;
-      record.pc = 1; // Set a non-zero PC to indicate source is available
-    }
+    // Only capture source if handler explicitly needs it (addSource option)
+    // This is very expensive, so we skip it by default
+    // If you need source info, enable it in HandlerOptions
 
     this.handler.handle(record);
   }

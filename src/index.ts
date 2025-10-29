@@ -108,7 +108,6 @@ export {
   Any,
   Group,
   Err,
-  attr,
 } from "./logger";
 
 import { Logger, Level, Attr, Handler } from "./logger";
