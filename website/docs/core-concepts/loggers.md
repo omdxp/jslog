@@ -124,18 +124,24 @@ if (logger.enabled(Level.DEBUG)) {
 }
 ```
 
-## Context Methods (Future Context Support)
+## Context Methods
 
-These methods are placeholders for future context support:
+These methods accept a `LogContext` object for structured context management:
 
 ```typescript
-logger.debugContext(msg, ...attrs);
-logger.infoContext(msg, ...attrs);
-logger.warnContext(msg, ...attrs);
-logger.errorContext(msg, ...attrs);
+import { LogContext } from '@omdxp/jslog';
+
+const ctx = new LogContext()
+  .set('requestId', 'req-123')
+  .set('userId', 'user-456');
+
+logger.debugContext('Debug message', ctx);
+logger.infoContext('Info message', ctx);
+logger.warnContext('Warn message', ctx);
+logger.errorContext('Error message', ctx);
 ```
 
-Currently, they behave the same as their non-context counterparts.
+The context is automatically merged with any additional attributes you provide. See the [Context](/docs/advanced/context) documentation for more details.
 
 ## Logger Composition
 

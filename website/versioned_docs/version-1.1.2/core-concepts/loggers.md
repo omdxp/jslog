@@ -124,9 +124,11 @@ if (logger.enabled(Level.DEBUG)) {
 }
 ```
 
-## Context Methods (Future Context Support)
+## Context Methods
 
-These methods are placeholders for future context support:
+:::info
+Context support is available in version 1.2.0 and later. In this version (1.1.2), these methods behave the same as their non-context counterparts.
+:::
 
 ```typescript
 logger.debugContext(msg, ...attrs);
@@ -134,8 +136,6 @@ logger.infoContext(msg, ...attrs);
 logger.warnContext(msg, ...attrs);
 logger.errorContext(msg, ...attrs);
 ```
-
-Currently, they behave the same as their non-context counterparts.
 
 ## Logger Composition
 
