@@ -110,7 +110,6 @@ jslog is optimized for V8's JIT compiler:
 
 - Direct string concatenation
 - `Object.keys()` instead of `for...in` loops
-- Duck typing instead of `instanceof`
 - Inline character validation with `charCodeAt()`
 - Cached level strings
 - Template literals for string building
@@ -267,7 +266,6 @@ Slow Path Capabilities:
 **TextHandler:**
 - Direct string concatenation
 - Inline escape validation
-- Duck typing for Date/Error formatting
 
 ## Real-World Usage
 
@@ -309,7 +307,6 @@ Core Improvements:
 - Smart key validation
 - Template literals for JSON construction
 - Cached level strings
-- Duck typing instead of `instanceof`
 - `Object.keys()` instead of `for...in` loops
 
 Security Fixes:
