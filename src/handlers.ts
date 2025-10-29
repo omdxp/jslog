@@ -85,9 +85,21 @@ export class TextHandler extends BaseHandler {
   private handleFast(record: Record): void {
     // Build string directly - faster than array join
     const timeStr = record.time.toISOString();
+    const msg = record.message;
+
+    // Inline escape check for message (most messages don't need escaping)
+    let escapedMsg = msg;
+    for (let i = 0; i < msg.length; i++) {
+      const c = msg.charCodeAt(i);
+      if (c === 34 || c === 92 || c === 10 || c === 13 || c === 9 || c < 32) {
+        escapedMsg = this.escapeText(msg);
+        break;
+      }
+    }
+
     let output = "time=" + timeStr;
     output += " level=" + getLevelString(record.level);
-    output += ' msg="' + this.escapeText(record.message) + '"';
+    output += ' msg="' + escapedMsg + '"';
 
     // Handler-level attributes
     const attrsLen = this.attrs.length;
@@ -327,9 +339,9 @@ export class JSONHandler extends BaseHandler {
   private handleFast(record: Record): void {
     // Ultra-optimized JSON building - avoid function calls
     const timeStr = record.time.toISOString();
+    const level = record.level;
     const levelStr =
-      this.levelStrings[record.level] ||
-      '"' + getLevelString(record.level) + '"';
+      this.levelStrings[level] || '"' + getLevelString(level) + '"';
 
     // Pre-calculate message escape if needed
     const msg = record.message;
@@ -343,21 +355,24 @@ export class JSONHandler extends BaseHandler {
     }
     const escapedMsg = needsEscape ? this.escapeJson(msg) : msg;
 
-    // Build JSON in one shot when possible
-    let json =
-      '{"time":"' +
-      timeStr +
-      '","level":' +
-      levelStr +
-      ',"msg":"' +
-      escapedMsg +
-      '"';
+    // Build JSON - use direct concatenation for speed
+    let json = `{"time":"${timeStr}","level":${levelStr},"msg":"${escapedMsg}"`;
 
     // Add record attributes
     const len = record.attrs.length;
     for (let i = 0; i < len; i++) {
       const attr = record.attrs[i];
-      json += ',"' + this.escapeJson(attr.key) + '":';
+      const key = attr.key;
+      // Fast path: check if key needs escaping
+      let keyNeedsEscape = false;
+      for (let j = 0; j < key.length; j++) {
+        const c = key.charCodeAt(j);
+        if (c === 34 || c === 92 || c === 10 || c === 13 || c === 9 || c < 32) {
+          keyNeedsEscape = true;
+          break;
+        }
+      }
+      json += ',"' + (keyNeedsEscape ? this.escapeJson(key) : key) + '":';
       json += this.stringifyValueFast(attr.value);
     }
 
