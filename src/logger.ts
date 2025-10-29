@@ -222,6 +222,7 @@ export class Logger {
       return;
     }
 
+    // Use single Date object - toISOString() is the expensive part, not Date creation
     const record: Record = {
       time: new Date(),
       message: msg,

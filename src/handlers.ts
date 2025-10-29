@@ -87,7 +87,7 @@ export class TextHandler extends BaseHandler {
     const timeStr = record.time.toISOString();
     let output = "time=" + timeStr;
     output += " level=" + getLevelString(record.level);
-    output += ' msg="' + record.message + '"';
+    output += ' msg="' + this.escapeText(record.message) + '"';
 
     // Handler-level attributes
     const attrsLen = this.attrs.length;
@@ -109,15 +109,60 @@ export class TextHandler extends BaseHandler {
     this.writer.write(output);
   }
 
+  private escapeText(str: string): string {
+    // Check if escape is needed first (fast path)
+    let needsEscape = false;
+    for (let i = 0; i < str.length; i++) {
+      const c = str.charCodeAt(i);
+      // Check for: " (34), \ (92), \n (10), \r (13), \t (9), other control chars
+      if (c === 34 || c === 92 || c === 10 || c === 13 || c === 9 || c < 32) {
+        needsEscape = true;
+        break;
+      }
+    }
+
+    if (!needsEscape) return str;
+
+    // Build escaped string
+    let result = "";
+    for (let i = 0; i < str.length; i++) {
+      const c = str.charCodeAt(i);
+      const char = str[i];
+      if (c === 34) result += '\\"'; // "
+      else if (c === 92) result += "\\\\"; // \
+      else if (c === 10) result += "\\n"; // newline
+      else if (c === 13) result += "\\r"; // carriage return
+      else if (c === 9) result += "\\t"; // tab
+      else if (c < 32) result += "\\u" + c.toString(16).padStart(4, "0");
+      // other control chars
+      else result += char;
+    }
+    return result;
+  }
+
   private formatValueFast(value: Value): string {
-    const type = typeof value;
-    if (type === "string") return '"' + value + '"';
-    if (type === "number" || type === "boolean") return String(value);
+    // Fast path for common primitives
     if (value === null) return "null";
     if (value === undefined) return "undefined";
-    if (value instanceof Date) return value.toISOString();
-    if (value instanceof Error) return '"' + value.message + '"';
-    // For complex types, use JSON
+
+    const type = typeof value;
+    if (type === "number" || type === "boolean") return String(value);
+    if (type === "string") return '"' + this.escapeText(value as string) + '"';
+
+    // Check for Date/Error without instanceof
+    if (type === "object" && value) {
+      if (typeof (value as any).toISOString === "function") {
+        return (value as Date).toISOString();
+      }
+      if (
+        typeof (value as any).message === "string" &&
+        typeof (value as any).stack === "string"
+      ) {
+        return '"' + this.escapeText((value as Error).message) + '"';
+      }
+    }
+
+    // Fallback to JSON
     return JSON.stringify(value);
   }
 
@@ -220,6 +265,8 @@ export class TextHandler extends BaseHandler {
     });
     handler.attrs = [...this.attrs, ...attrs];
     handler.groups = [...this.groups];
+    handler.hasGroups = this.hasGroups;
+    handler.hasReplaceAttr = this.hasReplaceAttr;
     return handler;
   }
 
@@ -232,6 +279,8 @@ export class TextHandler extends BaseHandler {
     });
     handler.attrs = [...this.attrs];
     handler.groups = [...this.groups, name];
+    handler.hasGroups = true; // Update flag since we're adding a group
+    handler.hasReplaceAttr = this.hasReplaceAttr;
     return handler;
   }
 }
@@ -244,6 +293,13 @@ export class JSONHandler extends BaseHandler {
   private hasGroups: boolean = false;
   private hasReplaceAttr: boolean = false;
   private hasHandlerAttrs: boolean = false;
+  // Pre-calculated level strings for ultra-fast path
+  private readonly levelStrings = {
+    [-4]: '"DEBUG"',
+    [0]: '"INFO"',
+    [4]: '"WARN"',
+    [8]: '"ERROR"',
+  } as const;
 
   constructor(options: HandlerOptions = {}) {
     super(options);
@@ -269,18 +325,39 @@ export class JSONHandler extends BaseHandler {
   }
 
   private handleFast(record: Record): void {
-    // Build JSON string directly without intermediate object
-    // This is 2-3x faster than creating obj then JSON.stringify
+    // Ultra-optimized JSON building - avoid function calls
     const timeStr = record.time.toISOString();
-    let json = '{"time":"' + timeStr + '"';
-    json += ',"level":"' + getLevelString(record.level) + '"';
-    json += ',"msg":"' + this.escapeJson(record.message) + '"';
+    const levelStr =
+      this.levelStrings[record.level] ||
+      '"' + getLevelString(record.level) + '"';
+
+    // Pre-calculate message escape if needed
+    const msg = record.message;
+    let needsEscape = false;
+    for (let i = 0; i < msg.length; i++) {
+      const c = msg.charCodeAt(i);
+      if (c === 34 || c === 92 || c === 10 || c === 13 || c === 9 || c < 32) {
+        needsEscape = true;
+        break;
+      }
+    }
+    const escapedMsg = needsEscape ? this.escapeJson(msg) : msg;
+
+    // Build JSON in one shot when possible
+    let json =
+      '{"time":"' +
+      timeStr +
+      '","level":' +
+      levelStr +
+      ',"msg":"' +
+      escapedMsg +
+      '"';
 
     // Add record attributes
     const len = record.attrs.length;
     for (let i = 0; i < len; i++) {
       const attr = record.attrs[i];
-      json += ',"' + attr.key + '":';
+      json += ',"' + this.escapeJson(attr.key) + '":';
       json += this.stringifyValueFast(attr.value);
     }
 
@@ -319,17 +396,36 @@ export class JSONHandler extends BaseHandler {
   }
 
   private stringifyValueFast(value: Value): string {
+    // Check null/undefined first (most common after primitives)
+    if (value === null || value === undefined) return "null";
+
     const type = typeof value;
 
-    if (value === null) return "null";
-    if (value === undefined) return "null";
-    if (type === "string") return '"' + this.escapeJson(value as string) + '"';
+    // Primitives - fastest path
     if (type === "number" || type === "boolean") return String(value);
+    if (type === "string") {
+      const str = value as string;
+      // Inline escape check for hot path - explicit checks for critical characters
+      let needsEscape = false;
+      for (let i = 0; i < str.length; i++) {
+        const c = str.charCodeAt(i);
+        if (c === 34 || c === 92 || c === 10 || c === 13 || c === 9 || c < 32) {
+          needsEscape = true;
+          break;
+        }
+      }
+      return needsEscape ? '"' + this.escapeJson(str) + '"' : '"' + str + '"';
+    }
 
-    // For complex types, fall back to JSON.stringify
-    if (value instanceof Date) return '"' + value.toISOString() + '"';
+    // Objects - check for Date first (common case)
+    if (type === "object") {
+      // Check if it's a Date by checking for getTime method
+      if (value && typeof (value as any).toISOString === "function") {
+        return '"' + (value as Date).toISOString() + '"';
+      }
+    }
 
-    // Use JSON.stringify for objects/arrays (still faster than manual serialization)
+    // Fallback to JSON.stringify for complex types
     return JSON.stringify(value);
   }
 
@@ -453,10 +549,10 @@ export class JSONHandler extends BaseHandler {
     if (type === "object" && value !== null) {
       const result: any = {};
       const obj = value as any;
-      for (const k in obj) {
-        if (Object.prototype.hasOwnProperty.call(obj, k)) {
-          result[k] = this.serializeValue(obj[k]);
-        }
+      const keys = Object.keys(obj);
+      for (let i = 0; i < keys.length; i++) {
+        const k = keys[i];
+        result[k] = this.serializeValue(obj[k]);
       }
       return result;
     }
@@ -473,6 +569,9 @@ export class JSONHandler extends BaseHandler {
     });
     handler.attrs = [...this.attrs, ...attrs];
     handler.groups = [...this.groups];
+    handler.hasGroups = this.hasGroups;
+    handler.hasReplaceAttr = this.hasReplaceAttr;
+    handler.hasHandlerAttrs = true; // We're adding attrs, so this is now true
     return handler;
   }
 
@@ -485,6 +584,9 @@ export class JSONHandler extends BaseHandler {
     });
     handler.attrs = [...this.attrs];
     handler.groups = [...this.groups, name];
+    handler.hasGroups = true; // Update flag since we're adding a group
+    handler.hasReplaceAttr = this.hasReplaceAttr;
+    handler.hasHandlerAttrs = this.hasHandlerAttrs;
     return handler;
   }
 }

@@ -9,6 +9,7 @@ const { execSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const crypto = require("crypto");
 
 // ANSI color codes for terminal output
 const colors = {
@@ -27,7 +28,9 @@ console.log(
 const runBenchmark = (name, file) => {
   console.log(`${colors.yellow}Running ${name}...${colors.reset}`);
   try {
-    const tmpFile = path.join(os.tmpdir(), `bench-${Date.now()}.log`);
+    // Generate unique temporary file name using crypto to avoid collisions
+    const randomId = crypto.randomBytes(8).toString("hex");
+    const tmpFile = path.join(os.tmpdir(), `bench-${randomId}.log`);
     execSync(`node ${file} > ${tmpFile} 2>&1`, {
       cwd: __dirname,
       stdio: "inherit",
