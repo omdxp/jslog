@@ -72,6 +72,11 @@ echo -e "${BLUE}Creating Docusaurus version snapshot...${NC}"
 cd website
 npm run docusaurus docs:version $NEW_VERSION
 cd ..
+
+# Update docusaurus.config.ts to set the new version as latest
+echo -e "${BLUE}Updating docusaurus.config.ts...${NC}"
+node scripts/update-docusaurus-version.js $NEW_VERSION
+
 echo -e "${GREEN}Created versioned docs for v$NEW_VERSION${NC}"
 
 # Commit and tag
