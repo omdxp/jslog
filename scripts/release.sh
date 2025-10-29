@@ -71,6 +71,11 @@ echo ""
 echo -e "${BLUE}Creating Docusaurus version snapshot...${NC}"
 cd website
 npm run docusaurus docs:version $NEW_VERSION
+
+# Fix versions.json order (Docusaurus adds new version first, we want it last)
+echo -e "${BLUE}Reordering versions.json...${NC}"
+node -e "const fs=require('fs');const v=JSON.parse(fs.readFileSync('versions.json'));const sorted=v.sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));fs.writeFileSync('versions.json',JSON.stringify(sorted,null,2)+'\n');"
+
 cd ..
 
 # Update docusaurus.config.ts to set the new version as latest
