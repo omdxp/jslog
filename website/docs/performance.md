@@ -95,8 +95,6 @@ handle(record: Record): void {
 }
 ```
 
-### 3. Zero Overhead Features
-
 ### Feature-Based Routing
 
 When advanced features are not in use, there is zero performance overhead:
@@ -186,7 +184,8 @@ const logger = new Logger(new JSONHandler({
 ```typescript
 import { BufferedHandler, JSONHandler } from '@omdxp/jslog';
 
-const handler = new BufferedHandler(new JSONHandler(), {
+const handler = new BufferedHandler({
+  handler: new JSONHandler(),
   bufferSize: 100,
   flushInterval: 1000
 });
@@ -199,102 +198,6 @@ const handler = new BufferedHandler(new JSONHandler(), {
 const devLogger = new Logger(new TextHandler({ addSource: true }));
 
 // Production
-```
-
-### 4. V8 Optimizations
-
-jslog is optimized for V8's JIT compiler:
-
-- Direct string concatenation (V8 optimizes this)
-- `Object.keys()` instead of `for...in` loops
-- Duck typing instead of `instanceof`
-- Inline character validation with `charCodeAt()`
-- Cached level strings (no runtime computation)
-- Template literals for initial string building
-
-### 5. Minimal Allocations
-
-The fast path minimizes object allocations:
-
-```typescript
-// Before: Creates intermediate objects
-const obj = { time: Date.now(), level: 'INFO', msg: message };
-output(JSON.stringify(obj));
-
-// After: Direct string building
-output(`{"time":${Date.now()},"level":"INFO","msg":"${message}"}`);
-```
-
-### 6. Smart Escape Checks
-
-Different strategies for different scenarios:
-
-```typescript
-// Simple check with indexOf (fast for simple strings)
-if (message.indexOf('"') === -1 && message.indexOf('\\') === -1) {
-  // No escaping needed!
-}
-
-// Character-by-character when needed
-for (let i = 0; i < len; i++) {
-  const c = str.charCodeAt(i);
-  if (c === 34 || c === 92 || c === 10 || c === 13 || c === 9 || c < 32) {
-    // Escape this character
-  }
-}
-```
-
-## Performance Tips
-
-### 1. Use Simple Logging When Possible
-
-```typescript
-// Fast path - maximum speed
-logger.info('Request processed', String('method', 'GET'), Int('status', 200));
-
-// Slow path - still fast, but 20-30% slower
-logger.info('Request processed',
-  Group('request',
-    String('method', 'GET'),
-    Int('status', 200)
-  )
-);
-```
-
-### 2. Avoid replaceAttr in Hot Paths
-
-```typescript
-// Fast path - no transformation
-const logger = new Logger(new JSONHandler());
-
-// Slow path - uses callback on every log
-const logger = new Logger(new JSONHandler({
-  replaceAttr: (attr) => {
-    if (attr.key === 'password') return String('password', '[REDACTED]');
-    return attr;
-  }
-}));
-```
-
-### 3. Use BufferedHandler for High Volume
-
-```typescript
-import { BufferedHandler, JSONHandler } from '@omdxp/jslog';
-
-// Batch logs for better throughput
-const handler = new BufferedHandler(new JSONHandler(), {
-  bufferSize: 100,
-  flushInterval: 1000
-});
-```
-
-### 4. Disable Source Tracking in Production
-
-```typescript
-// Development - track file/line (slow path)
-const devLogger = new Logger(new TextHandler({ addSource: true }));
-
-// Production - no source tracking (fast path)
 const prodLogger = new Logger(new TextHandler({ addSource: false }));
 ```
 
@@ -303,9 +206,9 @@ const prodLogger = new Logger(new TextHandler({ addSource: false }));
 ```typescript
 import { AsyncHandler, FileHandler } from '@omdxp/jslog';
 
-const handler = new AsyncHandler(
-  new FileHandler({ filename: 'app.log' })
-);
+const handler = new AsyncHandler({
+  handler: new FileHandler({ filepath: 'app.log' })
+});
 ```
 
 ## Comparison with Other Libraries
