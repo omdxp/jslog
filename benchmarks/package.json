@@ -7,7 +7,8 @@
     "bench": "node simple-logging.js && node complex-logging.js && node high-throughput.js",
     "bench:simple": "node simple-logging.js",
     "bench:complex": "node complex-logging.js",
-    "bench:throughput": "node high-throughput.js"
+    "bench:throughput": "node high-throughput.js",
+    "bench:report": "node generate-report.js"
   },
   "dependencies": {
     "@omdxp/jslog": "file:..",

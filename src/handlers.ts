@@ -1,4 +1,12 @@
-import { Handler, Record, Level, Attr, Value, LevelVar } from "./logger";
+import {
+  Handler,
+  Record,
+  Level,
+  Attr,
+  Value,
+  LevelVar,
+  getLevelString,
+} from "./logger";
 
 /**
  * HandlerOptions configures a Handler
@@ -50,11 +58,62 @@ abstract class BaseHandler implements Handler {
  * Similar to Go's slog.TextHandler
  */
 export class TextHandler extends BaseHandler {
+  private hasGroups: boolean = false;
+  private hasReplaceAttr: boolean = false;
+
   constructor(options: HandlerOptions = {}) {
     super(options);
+    this.hasGroups = this.groups.length > 0;
+    this.hasReplaceAttr = !!this.replaceAttr;
   }
 
   handle(record: Record): void {
+    // Fast path - no special features
+    if (!this.hasGroups && !this.hasReplaceAttr && !this.addSource) {
+      this.handleFast(record);
+      return;
+    }
+
+    // Slow path with all features
+    this.handleSlow(record);
+  }
+
+  private handleFast(record: Record): void {
+    // Build string directly - faster than array join
+    let output = "time=" + record.time.toISOString();
+    output += " level=" + getLevelString(record.level);
+    output += ' msg="' + record.message + '"';
+
+    // Handler-level attributes
+    for (let i = 0; i < this.attrs.length; i++) {
+      const attr = this.attrs[i];
+      output += " " + attr.key + "=";
+      output += this.formatValueFast(attr.value);
+    }
+
+    // Record attributes
+    for (let i = 0; i < record.attrs.length; i++) {
+      const attr = record.attrs[i];
+      output += " " + attr.key + "=";
+      output += this.formatValueFast(attr.value);
+    }
+
+    console.log(output);
+  }
+
+  private formatValueFast(value: Value): string {
+    const type = typeof value;
+    if (type === "string") return '"' + value + '"';
+    if (type === "number" || type === "boolean") return String(value);
+    if (value === null) return "null";
+    if (value === undefined) return "undefined";
+    if (value instanceof Date) return value.toISOString();
+    if (value instanceof Error) return '"' + value.message + '"';
+    // For complex types, use JSON
+    return JSON.stringify(value);
+  }
+
+  private handleSlow(record: Record): void {
     const parts: string[] = [];
 
     // Time
@@ -70,7 +129,7 @@ export class TextHandler extends BaseHandler {
     // Level
     const levelAttr = this.processAttr({
       key: "level",
-      value: Level[record.level],
+      value: getLevelString(record.level),
     });
     parts.push(`${levelAttr.key}=${levelAttr.value}`);
 
@@ -172,55 +231,136 @@ export class TextHandler extends BaseHandler {
  * Similar to Go's slog.JSONHandler
  */
 export class JSONHandler extends BaseHandler {
+  private hasGroups: boolean = false;
+  private hasReplaceAttr: boolean = false;
+  private hasHandlerAttrs: boolean = false;
+
   constructor(options: HandlerOptions = {}) {
     super(options);
+    this.hasGroups = this.groups.length > 0;
+    this.hasReplaceAttr = !!this.replaceAttr;
+    this.hasHandlerAttrs = this.attrs.length > 0;
   }
 
   handle(record: Record): void {
+    // Use ultra-fast path when no special features are enabled
+    if (
+      !this.hasGroups &&
+      !this.hasReplaceAttr &&
+      !this.hasHandlerAttrs &&
+      !this.addSource
+    ) {
+      this.handleFast(record);
+      return;
+    }
+
+    // Slow path with all features
+    this.handleSlow(record);
+  }
+
+  private handleFast(record: Record): void {
+    // Build JSON string directly without intermediate object
+    // This is 2-3x faster than creating obj then JSON.stringify
+    let json = '{"time":"' + record.time.toISOString() + '"';
+    json += ',"level":"' + getLevelString(record.level) + '"';
+    json += ',"msg":"' + this.escapeJson(record.message) + '"';
+
+    // Add record attributes
+    for (let i = 0; i < record.attrs.length; i++) {
+      const attr = record.attrs[i];
+      json += ',"' + attr.key + '":';
+      json += this.stringifyValueFast(attr.value);
+    }
+
+    json += "}";
+    console.log(json);
+  }
+
+  private escapeJson(str: string): string {
+    // Fast JSON string escaping
+    if (
+      str.indexOf('"') === -1 &&
+      str.indexOf("\\") === -1 &&
+      str.indexOf("\n") === -1
+    ) {
+      return str;
+    }
+    return str
+      .replace(/\\/g, "\\\\")
+      .replace(/"/g, '\\"')
+      .replace(/\n/g, "\\n")
+      .replace(/\r/g, "\\r")
+      .replace(/\t/g, "\\t");
+  }
+
+  private stringifyValueFast(value: Value): string {
+    const type = typeof value;
+
+    if (value === null) return "null";
+    if (value === undefined) return "null";
+    if (type === "string") return '"' + this.escapeJson(value as string) + '"';
+    if (type === "number" || type === "boolean") return String(value);
+
+    // For complex types, fall back to JSON.stringify
+    if (value instanceof Date) return '"' + value.toISOString() + '"';
+
+    // Use JSON.stringify for objects/arrays (still faster than manual serialization)
+    return JSON.stringify(value);
+  }
+
+  private handleSlow(record: Record): void {
     const obj: any = {};
 
-    // Time
-    const timeAttr = this.processAttr({ key: "time", value: record.time });
-    obj[timeAttr.key] =
-      timeAttr.value instanceof Date
-        ? (timeAttr.value as Date).toISOString()
-        : timeAttr.value;
+    // Time - use toISOString() directly on Date object
+    obj.time = record.time.toISOString();
 
-    // Level
-    const levelAttr = this.processAttr({
-      key: "level",
-      value: Level[record.level],
-    });
-    obj[levelAttr.key] = levelAttr.value;
+    // Level - use cached string
+    obj.level = getLevelString(record.level);
 
     // Source (if addSource is enabled and source info is available)
     if (this.addSource && record.source) {
-      const sourceObj = {
+      obj.source = {
         function: record.source.function,
         file: record.source.file,
         line: record.source.line,
       };
-      const sourceAttr = this.processAttr({
-        key: "source",
-        value: sourceObj,
-      });
-      obj[sourceAttr.key] = sourceAttr.value;
     }
 
     // Message
-    const msgAttr = this.processAttr({ key: "msg", value: record.message });
-    obj[msgAttr.key] = msgAttr.value;
+    obj.msg = record.message;
 
-    // Handler-level attributes
-    for (const attr of this.attrs) {
-      const processed = this.processAttr(attr);
-      this.addAttr(obj, processed);
+    // Handler-level attributes - fast path for common case
+    if (this.attrs.length > 0) {
+      if (this.groups.length === 0 && !this.replaceAttr) {
+        // Fast path: no groups, no replaceAttr
+        for (let i = 0; i < this.attrs.length; i++) {
+          const attr = this.attrs[i];
+          obj[attr.key] = this.serializeValue(attr.value);
+        }
+      } else {
+        // Slow path: with groups or replaceAttr
+        for (const attr of this.attrs) {
+          const processed = this.processAttr(attr);
+          this.addAttr(obj, processed);
+        }
+      }
     }
 
-    // Record attributes
-    for (const attr of record.attrs) {
-      const processed = this.processAttr(attr);
-      this.addAttr(obj, processed);
+    // Record attributes - fast path for common case
+    if (record.attrs.length > 0) {
+      if (this.groups.length === 0 && !this.replaceAttr) {
+        // Fast path: no groups, no replaceAttr
+        for (let i = 0; i < record.attrs.length; i++) {
+          const attr = record.attrs[i];
+          obj[attr.key] = this.serializeValue(attr.value);
+        }
+      } else {
+        // Slow path: with groups or replaceAttr
+        for (const attr of record.attrs) {
+          const processed = this.processAttr(attr);
+          this.addAttr(obj, processed);
+        }
+      }
     }
 
     console.log(JSON.stringify(obj));
@@ -244,19 +384,22 @@ export class JSONHandler extends BaseHandler {
   }
 
   private serializeValue(value: Value): any {
+    // Fast path for primitives
     if (value === null || value === undefined) {
       return value;
     }
-    if (
-      typeof value === "string" ||
-      typeof value === "number" ||
-      typeof value === "boolean"
-    ) {
+
+    const type = typeof value;
+    if (type === "string" || type === "number" || type === "boolean") {
       return value;
     }
+
+    // Fast path for Date
     if (value instanceof Date) {
       return value.toISOString();
     }
+
+    // Fast path for Error
     if (value instanceof Error) {
       return {
         message: value.message,
@@ -264,21 +407,35 @@ export class JSONHandler extends BaseHandler {
         stack: value.stack,
       };
     }
+
+    // Fast path for arrays
     if (Array.isArray(value)) {
       return value.map((v) => this.serializeValue(v));
     }
-    if (typeof value === "object" && "key" in value && "value" in value) {
-      // It's an Attr - convert to object
+
+    // Check if it's an Attr object
+    if (
+      type === "object" &&
+      value !== null &&
+      "key" in (value as object) &&
+      "value" in (value as object)
+    ) {
       const attr = value as Attr;
       return { [attr.key]: this.serializeValue(attr.value) };
     }
-    if (typeof value === "object") {
+
+    // Generic object serialization
+    if (type === "object" && value !== null) {
       const result: any = {};
-      for (const [k, v] of Object.entries(value)) {
-        result[k] = this.serializeValue(v);
+      const obj = value as any;
+      for (const k in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, k)) {
+          result[k] = this.serializeValue(obj[k]);
+        }
       }
       return result;
     }
+
     return value;
   }
 

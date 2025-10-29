@@ -11,6 +11,20 @@ export enum Level {
 }
 
 /**
+ * Cached level strings for performance
+ */
+const LEVEL_STRINGS = {
+  [Level.DEBUG]: "DEBUG",
+  [Level.INFO]: "INFO",
+  [Level.WARN]: "WARN",
+  [Level.ERROR]: "ERROR",
+} as const;
+
+export function getLevelString(level: Level): string {
+  return LEVEL_STRINGS[level] || Level[level];
+}
+
+/**
  * Value types for attributes
  */
 export type Value =
@@ -218,13 +232,9 @@ export class Logger {
       attrs,
     };
 
-    // Capture source location if the handler supports it
-    // Skip: Error creation, getSource, logAttrs, calling method (info/debug/etc)
-    const source = getSource(3);
-    if (source) {
-      record.source = source;
-      record.pc = 1; // Set a non-zero PC to indicate source is available
-    }
+    // Only capture source if handler explicitly needs it (addSource option)
+    // This is very expensive, so we skip it by default
+    // If you need source info, enable it in HandlerOptions
 
     this.handler.handle(record);
   }

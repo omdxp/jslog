@@ -2,6 +2,12 @@
 
 Performance benchmarks comparing `@omdxp/jslog` against popular Node.js logging libraries.
 
+## 📊 Latest Results
+
+**[View Full Benchmark Results →](./BENCH.md)**
+
+The benchmark report includes detailed performance metrics, system information, and comprehensive comparisons across all test scenarios.
+
 ## Benchmarked Libraries
 
 - **jslog** - This library
@@ -16,7 +22,10 @@ Performance benchmarks comparing `@omdxp/jslog` against popular Node.js logging 
 # Install dependencies
 npm install
 
-# Run all benchmarks
+# Generate benchmark report (runs all benchmarks and creates BENCH.md)
+npm run bench:report
+
+# Or run all benchmarks without generating report
 npm run bench
 
 # Run individual benchmarks
