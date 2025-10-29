@@ -56,24 +56,21 @@ export interface Attr {
 }
 
 /**
- * Creates an attribute
- */
-export function attr(key: string, value: Value): Attr {
-  return { key, value };
-}
-
-/**
  * Convenience functions for common attribute types
+ * Inlined for performance - avoid function call overhead
  */
-export const String = (key: string, value: string): Attr => attr(key, value);
-export const Int = (key: string, value: number): Attr => attr(key, value);
-export const Int64 = (key: string, value: number): Attr => attr(key, value);
-export const Uint64 = (key: string, value: number): Attr => attr(key, value);
-export const Float64 = (key: string, value: number): Attr => attr(key, value);
-export const Bool = (key: string, value: boolean): Attr => attr(key, value);
-export const Time = (key: string, value: Date): Attr => attr(key, value);
-export const Duration = (key: string, ms: number): Attr => attr(key, `${ms}ms`);
-export const Any = (key: string, value: any): Attr => attr(key, value);
+export const String = (key: string, value: string): Attr => ({ key, value });
+export const Int = (key: string, value: number): Attr => ({ key, value });
+export const Int64 = (key: string, value: number): Attr => ({ key, value });
+export const Uint64 = (key: string, value: number): Attr => ({ key, value });
+export const Float64 = (key: string, value: number): Attr => ({ key, value });
+export const Bool = (key: string, value: boolean): Attr => ({ key, value });
+export const Time = (key: string, value: Date): Attr => ({ key, value });
+export const Duration = (key: string, ms: number): Attr => ({
+  key,
+  value: `${ms}ms`,
+});
+export const Any = (key: string, value: any): Attr => ({ key, value });
 
 /**
  * Group creates a named group of attributes
@@ -83,7 +80,7 @@ export const Group = (key: string, ...attrs: Attr[]): Attr => {
   for (const attr of attrs) {
     obj[attr.key] = attr.value;
   }
-  return attr(key, obj);
+  return { key, value: obj };
 };
 
 /**
@@ -91,7 +88,7 @@ export const Group = (key: string, ...attrs: Attr[]): Attr => {
  */
 export const Err = (err: Error | string): Attr => {
   if (typeof err === "string") {
-    return attr("error", err);
+    return { key: "error", value: err };
   }
   return Group(
     "error",

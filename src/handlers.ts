@@ -7,6 +7,7 @@ import {
   LevelVar,
   getLevelString,
 } from "./logger";
+import { Writable } from "stream";
 
 /**
  * HandlerOptions configures a Handler
@@ -15,6 +16,7 @@ export interface HandlerOptions {
   level?: Level | LevelVar;
   addSource?: boolean;
   replaceAttr?: (groups: string[], attr: Attr) => Attr;
+  writer?: Writable; // Stream to write to (defaults to stdout)
 }
 
 /**
@@ -26,6 +28,7 @@ abstract class BaseHandler implements Handler {
   protected groups: string[];
   protected addSource: boolean;
   protected replaceAttr?: (groups: string[], attr: Attr) => Attr;
+  protected writer: Writable;
 
   constructor(options: HandlerOptions = {}) {
     this.level = options.level ?? Level.INFO;
@@ -33,6 +36,7 @@ abstract class BaseHandler implements Handler {
     this.groups = [];
     this.addSource = options.addSource ?? false;
     this.replaceAttr = options.replaceAttr;
+    this.writer = options.writer ?? process.stdout;
   }
 
   enabled(level: Level): boolean {
@@ -80,25 +84,29 @@ export class TextHandler extends BaseHandler {
 
   private handleFast(record: Record): void {
     // Build string directly - faster than array join
-    let output = "time=" + record.time.toISOString();
+    const timeStr = record.time.toISOString();
+    let output = "time=" + timeStr;
     output += " level=" + getLevelString(record.level);
     output += ' msg="' + record.message + '"';
 
     // Handler-level attributes
-    for (let i = 0; i < this.attrs.length; i++) {
+    const attrsLen = this.attrs.length;
+    for (let i = 0; i < attrsLen; i++) {
       const attr = this.attrs[i];
       output += " " + attr.key + "=";
       output += this.formatValueFast(attr.value);
     }
 
     // Record attributes
-    for (let i = 0; i < record.attrs.length; i++) {
+    const recordAttrsLen = record.attrs.length;
+    for (let i = 0; i < recordAttrsLen; i++) {
       const attr = record.attrs[i];
       output += " " + attr.key + "=";
       output += this.formatValueFast(attr.value);
     }
 
-    console.log(output);
+    output += "\n";
+    this.writer.write(output);
   }
 
   private formatValueFast(value: Value): string {
@@ -161,7 +169,7 @@ export class TextHandler extends BaseHandler {
       parts.push(this.formatAttr(processed));
     }
 
-    console.log(parts.join(" "));
+    this.writer.write(parts.join(" ") + "\n");
   }
 
   private formatAttr(attr: Attr): string {
@@ -208,6 +216,7 @@ export class TextHandler extends BaseHandler {
       level: this.level,
       addSource: this.addSource,
       replaceAttr: this.replaceAttr,
+      writer: this.writer,
     });
     handler.attrs = [...this.attrs, ...attrs];
     handler.groups = [...this.groups];
@@ -219,6 +228,7 @@ export class TextHandler extends BaseHandler {
       level: this.level,
       addSource: this.addSource,
       replaceAttr: this.replaceAttr,
+      writer: this.writer,
     });
     handler.attrs = [...this.attrs];
     handler.groups = [...this.groups, name];
@@ -261,36 +271,51 @@ export class JSONHandler extends BaseHandler {
   private handleFast(record: Record): void {
     // Build JSON string directly without intermediate object
     // This is 2-3x faster than creating obj then JSON.stringify
-    let json = '{"time":"' + record.time.toISOString() + '"';
+    const timeStr = record.time.toISOString();
+    let json = '{"time":"' + timeStr + '"';
     json += ',"level":"' + getLevelString(record.level) + '"';
     json += ',"msg":"' + this.escapeJson(record.message) + '"';
 
     // Add record attributes
-    for (let i = 0; i < record.attrs.length; i++) {
+    const len = record.attrs.length;
+    for (let i = 0; i < len; i++) {
       const attr = record.attrs[i];
       json += ',"' + attr.key + '":';
       json += this.stringifyValueFast(attr.value);
     }
 
-    json += "}";
-    console.log(json);
+    json += "}\n";
+    this.writer.write(json);
   }
 
   private escapeJson(str: string): string {
-    // Fast JSON string escaping
-    if (
-      str.indexOf('"') === -1 &&
-      str.indexOf("\\") === -1 &&
-      str.indexOf("\n") === -1
-    ) {
-      return str;
+    // Fast path - most strings don't need escaping
+    let needsEscape = false;
+    for (let i = 0; i < str.length; i++) {
+      const c = str.charCodeAt(i);
+      if (c === 34 || c === 92 || c === 10 || c === 13 || c === 9 || c < 32) {
+        needsEscape = true;
+        break;
+      }
     }
-    return str
-      .replace(/\\/g, "\\\\")
-      .replace(/"/g, '\\"')
-      .replace(/\n/g, "\\n")
-      .replace(/\r/g, "\\r")
-      .replace(/\t/g, "\\t");
+
+    if (!needsEscape) return str;
+
+    // Slow path - build escaped string
+    let result = "";
+    for (let i = 0; i < str.length; i++) {
+      const c = str[i];
+      const code = str.charCodeAt(i);
+      if (code === 34) result += '\\"';
+      else if (code === 92) result += "\\\\";
+      else if (code === 10) result += "\\n";
+      else if (code === 13) result += "\\r";
+      else if (code === 9) result += "\\t";
+      else if (code < 32)
+        result += "\\u" + ("0000" + code.toString(16)).slice(-4);
+      else result += c;
+    }
+    return result;
   }
 
   private stringifyValueFast(value: Value): string {
@@ -363,7 +388,7 @@ export class JSONHandler extends BaseHandler {
       }
     }
 
-    console.log(JSON.stringify(obj));
+    this.writer.write(JSON.stringify(obj) + "\n");
   }
 
   private addAttr(obj: any, attr: Attr): void {
@@ -444,6 +469,7 @@ export class JSONHandler extends BaseHandler {
       level: this.level,
       addSource: this.addSource,
       replaceAttr: this.replaceAttr,
+      writer: this.writer,
     });
     handler.attrs = [...this.attrs, ...attrs];
     handler.groups = [...this.groups];
@@ -455,6 +481,7 @@ export class JSONHandler extends BaseHandler {
       level: this.level,
       addSource: this.addSource,
       replaceAttr: this.replaceAttr,
+      writer: this.writer,
     });
     handler.attrs = [...this.attrs];
     handler.groups = [...this.groups, name];
