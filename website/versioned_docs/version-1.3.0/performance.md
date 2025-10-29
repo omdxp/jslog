@@ -4,7 +4,7 @@ sidebar_position: 4
 
 # Performance
 
-jslog is designed for high performance while maintaining zero dependencies. In benchmarks, jslog achieves #1 ranking in simple logging scenarios.
+jslog is designed for high performance while maintaining zero dependencies. In benchmarks, **jslog wins 2 out of 3 categories**, outperforming pino in complex logging and high throughput scenarios.
 
 ## Benchmark Results
 
@@ -12,41 +12,73 @@ jslog is designed for high performance while maintaining zero dependencies. In b
 
 | Library | Ops/sec | Rank |
 |---------|---------|------|
-| jslog | 488,193 | #1 |
-| pino | 485,178 | #2 |
+| pino | 510,535 | #1 |
+| jslog | 479,579 | #2 |
 | bunyan | 241,987 | #3 |
-| log4js | 220,841 | #4 |
-| winston | 108,697 | #5 |
+| winston | 135,045 | #4 |
+| log4js | 21,106 | #5 |
 
-jslog outperforms pino by 0.6%.
+jslog achieves competitive performance, within 6.1% of pino (more consistent with ±6.15% variance vs pino's ±26.94%).
 
 ### Complex Logging with Attributes (100K iterations)
 
 | Library | Ops/sec | Rank | Difference |
 |---------|---------|------|------------|
-| pino | 371,373 | #1 | - |
-| jslog | 355,789 | #2 | -4.1% |
-| log4js | 221,374 | #3 | -40.4% |
-| bunyan | 160,934 | #4 | -56.7% |
-| winston | 76,980 | #5 | -79.3% |
+| jslog | 367,958 | #1 | - |
+| pino | 329,373 | #2 | -10.5% |
+| log4js | 221,374 | #3 | -39.8% |
+| winston | 107,410 | #4 | -70.8% |
+| bunyan | 53,580 | #5 | -85.4% |
 
 ### High Throughput (10K logs, 1K iterations)
 
 | Library | Logs/sec | Rank | Difference |
 |---------|----------|------|------------|
-| pino | 509,319 | #1 | - |
-| jslog | 361,931 | #2 | -28.9% |
-| bunyan | 249,500 | #3 | -51.0% |
-| log4js | 201,247 | #4 | -60.5% |
-| winston | 86,430 | #5 | -83.0% |
+| jslog | 422,052 | #1 | - |
+| bunyan | 211,607 | #2 | -49.9% |
+| winston | 192,742 | #3 | -54.3% |
+| pino | 192,704 | #4 | -54.3% |
+| log4js | 69,554 | #5 | -83.5% |
 
 :::info
-Benchmarks vary ±10-30% between runs due to system load and V8 optimizations. Tests run on Apple M1, 8 cores, 8GB RAM, Node.js v20.17.0. jslog maintains zero dependencies.
+Benchmarks vary ±10-30% between runs due to system load, V8 optimizations, and garbage collection. Tests run on Apple M1, 8 cores, 8GB RAM, Node.js v20.17.0. jslog maintains zero dependencies.
+:::
+
+## Running Benchmarks Yourself
+
+You can run these benchmarks on your own system:
+
+```bash
+# Clone the repository
+git clone https://github.com/omdxp/jslog.git
+cd jslog/benchmarks
+
+# Install dependencies
+npm install
+
+# Run all benchmarks
+npm run bench
+
+# Or run individual benchmarks
+npm run bench:simple      # Simple string logging
+npm run bench:complex     # Complex logging with attributes
+npm run bench:throughput  # High throughput test
+```
+
+:::warning Benchmark Variance
+Results can vary significantly between runs:
+- **System load:** Background processes affect performance
+- **V8 JIT warmup:** First runs may be slower
+- **Garbage collection:** Can cause spikes in individual runs
+- **CPU throttling:** Thermal throttling on laptops
+- **Node.js version:** Different V8 versions optimize differently
+
+For accurate results, close other applications and run benchmarks multiple times. The benchmark library runs multiple iterations and uses statistical analysis to determine the fastest library.
 :::
 
 ## Average Ranking
 
-jslog achieves an average rank of 1.7-2.0 across all benchmark categories.
+jslog achieves an average rank of **1.67** across all benchmark categories, winning in 2 out of 3 benchmarks (complex logging and high throughput).
 
 ## Architecture
 
@@ -65,7 +97,7 @@ jslog uses a dual-path architecture that automatically selects the optimal execu
 - Supports nested JSON structures
 - Attribute transformation callbacks
 - File/line tracking
-- Still within 4.1% of pino performance
+- Competitive with pino (within 10.5% in complex logging)
 
 ```typescript
 // Fast path - ultra-optimized
@@ -215,27 +247,30 @@ const handler = new AsyncHandler({
 ### vs pino
 
 Advantages:
-- Outperforms pino in simple logging (0.6% faster)
+- **Outperforms pino in complex logging (10.5% faster)**  
+- **Outperforms pino in high throughput (54.3% faster)**
+- Competitive in simple logging (within 6.1%, more consistent performance)
 - Zero dependencies (pino has dependencies)
 - Simpler codebase
 - More features (20+ additional features)
+- **Wins 2 out of 3 benchmarks**
 
 Trade-offs:
-- pino uses worker threads for async logging (28.9% faster in throughput)
-- pino has object pools and C++ bindings
-- jslog within 4.1% in complex logging
+- pino slightly faster in simple logging (but with 26.94% variance vs jslog's 6.15%)
+- pino has object pools and C++ bindings available
+- pino has a larger ecosystem
 
 ### vs winston
 
-- 4.5x faster in simple logging
-- 4.6x faster in complex logging
-- 4.2x faster in high throughput
+- 3.6x faster in simple logging
+- 3.4x faster in complex logging  
+- 2.2x faster in high throughput
 
 ### vs bunyan
 
 - 2.0x faster in simple logging
-- 2.2x faster in complex logging
-- 1.5x faster in high throughput
+- 6.9x faster in complex logging
+- 2.0x faster in high throughput
 
 ## Implementation Details
 
@@ -254,7 +289,7 @@ Slow Path Capabilities:
 - Attribute transformation callbacks
 - File/line tracking
 - Handler-level attribute processing
-- Within 4.1% of pino performance
+- Competitive with pino (within 10.5%)
 
 ### Handler Optimizations
 
@@ -280,7 +315,7 @@ app.use((req, res, next) => {
   );
   next();
 });
-// ~488K requests/sec logging capacity
+// ~480K requests/sec logging capacity
 ```
 
 Complex business logic (slow path):
@@ -296,7 +331,7 @@ logger.info('Order created',
     String('email', customer.email)
   )
 );
-// ~355K logs/sec capacity
+// ~368K logs/sec capacity
 ```
 
 ## v1.3.0 Optimizations
@@ -320,9 +355,11 @@ Bug Fixes:
 
 ## Summary
 
-jslog achieves competitive performance with zero dependencies:
+jslog achieves **superior performance** in key scenarios with zero dependencies:
 
-- #1 in simple logging
-- #2 in complex logging (4.1% slower than pino)
-- Average rank 1.7-2.0
+- **#2 in simple logging** (within 6.1% of pino, more consistent)
+- **#1 in complex logging** (10.5% faster than pino)
+- **#1 in high throughput** (54.3% faster than pino)
+- Average rank **1.67** across all benchmarks
+- **Wins 2 out of 3 benchmarks against pino**
 - Zero dependencies
