@@ -1,3 +1,5 @@
+import type { LogContext } from "./utils";
+
 /**
  * Log levels matching Go's slog levels
  */
@@ -235,10 +237,10 @@ export class Logger {
   }
 
   /**
-   * DebugContext logs at DEBUG level (for future context support)
+   * DebugContext logs at DEBUG level with context support
    */
-  debugContext(msg: string, ...attrs: Attr[]): void {
-    this.debug(msg, ...attrs);
+  debugContext(msg: string, ctx: LogContext, ...attrs: Attr[]): void {
+    this.debug(msg, ...ctx.toAttrs(), ...attrs);
   }
 
   /**
@@ -249,10 +251,10 @@ export class Logger {
   }
 
   /**
-   * InfoContext logs at INFO level (for future context support)
+   * InfoContext logs at INFO level with context support
    */
-  infoContext(msg: string, ...attrs: Attr[]): void {
-    this.info(msg, ...attrs);
+  infoContext(msg: string, ctx: LogContext, ...attrs: Attr[]): void {
+    this.info(msg, ...ctx.toAttrs(), ...attrs);
   }
 
   /**
@@ -263,10 +265,10 @@ export class Logger {
   }
 
   /**
-   * WarnContext logs at WARN level (for future context support)
+   * WarnContext logs at WARN level with context support
    */
-  warnContext(msg: string, ...attrs: Attr[]): void {
-    this.warn(msg, ...attrs);
+  warnContext(msg: string, ctx: LogContext, ...attrs: Attr[]): void {
+    this.warn(msg, ...ctx.toAttrs(), ...attrs);
   }
 
   /**
@@ -277,10 +279,10 @@ export class Logger {
   }
 
   /**
-   * ErrorContext logs at ERROR level (for future context support)
+   * ErrorContext logs at ERROR level with context support
    */
-  errorContext(msg: string, ...attrs: Attr[]): void {
-    this.error(msg, ...attrs);
+  errorContext(msg: string, ctx: LogContext, ...attrs: Attr[]): void {
+    this.error(msg, ...ctx.toAttrs(), ...attrs);
   }
 
   /**
