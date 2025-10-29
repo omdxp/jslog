@@ -66,10 +66,18 @@ if [ -f "CHANGELOG.md" ]; then
   read -p "Press enter when ready to continue..."
 fi
 
+# Create Docusaurus version snapshot
+echo ""
+echo -e "${BLUE}Creating Docusaurus version snapshot...${NC}"
+cd website
+npm run docusaurus docs:version $NEW_VERSION
+cd ..
+echo -e "${GREEN}Created versioned docs for v$NEW_VERSION${NC}"
+
 # Commit and tag
 echo ""
 echo -e "${BLUE}Creating commit and tag...${NC}"
-git add package.json package-lock.json
+git add package.json package-lock.json website/
 git commit -m "Release v$NEW_VERSION"
 git tag "v$NEW_VERSION"
 
