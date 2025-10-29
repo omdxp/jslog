@@ -1,0 +1,20 @@
+{
+  "name": "jslog-benchmarks",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Performance benchmarks for @omdxp/jslog",
+  "scripts": {
+    "bench": "node simple-logging.js && node complex-logging.js && node high-throughput.js",
+    "bench:simple": "node simple-logging.js",
+    "bench:complex": "node complex-logging.js",
+    "bench:throughput": "node high-throughput.js"
+  },
+  "dependencies": {
+    "@omdxp/jslog": "file:..",
+    "pino": "^10.1.0",
+    "winston": "^3.18.0",
+    "bunyan": "^2.0.5",
+    "log4js": "^6.9.1",
+    "benchmark": "^2.1.4"
+  }
+}
