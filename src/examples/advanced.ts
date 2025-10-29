@@ -20,6 +20,7 @@ import {
   Err,
   Any,
   New,
+  LogContext,
 } from "../index";
 
 console.log("=== Level Variants ===");
@@ -150,10 +151,11 @@ console.log("(Nothing logged above - handler discards all records)");
 
 console.log("\n=== Context Methods ===");
 const logger6 = New(new TextHandler({ level: Level.DEBUG }));
-logger6.debugContext("Debug with context", String("ctx", "value"));
-logger6.infoContext("Info with context", String("ctx", "value"));
-logger6.warnContext("Warn with context", String("ctx", "value"));
-logger6.errorContext("Error with context", String("ctx", "value"));
+const ctx = new LogContext().set("ctx", "value");
+logger6.debugContext("Debug with context", ctx);
+logger6.infoContext("Info with context", ctx);
+logger6.warnContext("Warn with context", ctx);
+logger6.errorContext("Error with context", ctx);
 
 console.log("\n=== Enabled Check ===");
 const logger7 = New(new TextHandler({ level: Level.WARN }));
