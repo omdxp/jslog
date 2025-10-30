@@ -125,17 +125,23 @@ const logger = new Logger(multiHandler);
 
 // On shutdown, close all handlers at once
 process.on('SIGTERM', async () => {
-  // This calls close() on FileHandler, BufferedHandler, and AsyncHandler
+  // This calls close() on all wrapped handlers and waits for async operations
   await multiHandler.close();
   process.exit(0);
 });
 ```
 
-The `close()` method cascades to all wrapped handlers, ensuring:
-- File streams are closed
-- Buffers are flushed
-- Timers are cleared
-- Async operations complete
+The `close()` method:
+- Returns a Promise that resolves when all handlers are closed
+- Handles both sync and async close methods automatically
+- Waits for all async operations to complete (AsyncHandler, nested handlers)
+- Ensures proper cleanup of all resources
+
+Cascades to all wrapped handlers, ensuring:
+- File streams are closed (FileHandler)
+- Buffers are flushed (BufferedHandler)
+- Timers are cleared (BufferedHandler)
+- Async operations complete (AsyncHandler)
 
 ### DiscardHandler
 

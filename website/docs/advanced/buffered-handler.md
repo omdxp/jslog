@@ -102,8 +102,8 @@ logger.info('Application running...');
 async function shutdown() {
   console.log('Shutting down...');
   
-  // Flush remaining logs and stop the timer
-  bufferedHandler.close();
+  // Flush remaining logs, stop timer, and close wrapped handler
+  await bufferedHandler.close();
   
   console.log('All logs flushed. Goodbye!');
   process.exit(0);
@@ -117,7 +117,9 @@ process.on('SIGINT', shutdown);
 
 1. **Clears the flush timer** - Stops the interval that keeps process alive
 2. **Flushes remaining logs** - Writes any buffered records
-3. **Allows clean exit** - Process can terminate without hanging
+3. **Closes wrapped handler** - Calls close() on wrapped handler if it supports it
+4. **Returns a Promise** - Waits for async close operations to complete
+5. **Allows clean exit** - Process can terminate without hanging
 
 ### Manual Flush vs Close
 
@@ -127,11 +129,11 @@ const bufferedHandler = new BufferedHandler({
   bufferSize: 100
 });
 
-// flush() - Only writes buffer, timer keeps running
+// flush() - Only writes buffer, timer keeps running (synchronous)
 bufferedHandler.flush();
 
-// close() - Writes buffer AND stops timer
-bufferedHandler.close();
+// close() - Writes buffer, stops timer, AND closes wrapped handlers (async)
+await bufferedHandler.close();
 ```
 
 ### Express.js Example

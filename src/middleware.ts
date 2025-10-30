@@ -169,11 +169,16 @@ export class MiddlewareHandler implements Handler {
 
   /**
    * Close the wrapped handler if it supports closing.
+   * Handles both sync and async close methods properly.
    * Delegates to the underlying handler's close method.
    */
-  close(): void {
+  async close(): Promise<void> {
     if ("close" in this.handler && typeof this.handler.close === "function") {
-      (this.handler as any).close();
+      const result = (this.handler as any).close();
+      // If it returns a Promise, await it
+      if (result && typeof result.then === "function") {
+        await result;
+      }
     }
   }
 }
