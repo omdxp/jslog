@@ -43,7 +43,7 @@ jobs:
       run: |
         echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        cat benchmarks/BENCH.md >> $GITHUB_STEP_SUMMARY
+        [ -f benchmarks/BENCH.md ] && cat benchmarks/BENCH.md >> $GITHUB_STEP_SUMMARY
 
     - name: Upload benchmark results
       if: always()
