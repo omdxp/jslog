@@ -305,7 +305,7 @@ async function main() {
 
   // Graceful shutdown - wait for async operations to complete
   await asyncHandler.close();
-  bufferedHandler.close();
+  await bufferedHandler.close();
 }
 
 main().catch(console.error);
