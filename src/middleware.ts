@@ -22,6 +22,10 @@ export class AsyncHandler implements Handler {
     return this.handler.enabled(level);
   }
 
+  needsSource(): boolean {
+    return this.handler.needsSource?.() ?? false;
+  }
+
   handle(record: Record): void {
     // Queue the operation to ensure order
     this.queue = this.queue
@@ -90,6 +94,10 @@ export class MiddlewareHandler implements Handler {
 
   enabled(level: Level): boolean {
     return this.handler.enabled(level);
+  }
+
+  needsSource(): boolean {
+    return this.handler.needsSource?.() ?? false;
   }
 
   handle(record: Record): void {

@@ -168,6 +168,7 @@ export interface Handler {
   handle(record: Record): void;
   withAttrs(attrs: Attr[]): Handler;
   withGroup(name: string): Handler;
+  needsSource?(): boolean; // Optional: return true if handler needs source info
 }
 
 /**
@@ -230,9 +231,11 @@ export class Logger {
       attrs,
     };
 
-    // Only capture source if handler explicitly needs it (addSource option)
-    // This is very expensive, so we skip it by default
-    // If you need source info, enable it in HandlerOptions
+    // Only capture source if handler explicitly needs it (expensive operation)
+    // Check if handler implements needsSource() and returns true
+    if (this.handler.needsSource?.()) {
+      record.source = getSource(3); // Skip getSource + log + info/warn/error = get to actual caller
+    }
 
     this.handler.handle(record);
   }

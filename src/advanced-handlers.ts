@@ -54,6 +54,10 @@ export class FileHandler implements Handler {
     return level >= this.level;
   }
 
+  needsSource(): boolean {
+    return this.addSource;
+  }
+
   private processAttr(attr: Attr): Attr {
     if (this.replaceAttr) {
       return this.replaceAttr(this.groups, attr);
@@ -255,6 +259,10 @@ export class BufferedHandler implements Handler {
     return this.handler.enabled(level);
   }
 
+  needsSource(): boolean {
+    return this.handler.needsSource?.() ?? false;
+  }
+
   handle(record: Record): void {
     this.buffer.push(record);
     if (this.buffer.length >= this.bufferSize) {
@@ -325,6 +333,10 @@ export class SamplingHandler implements Handler {
     return this.handler.enabled(level);
   }
 
+  needsSource(): boolean {
+    return this.handler.needsSource?.() ?? false;
+  }
+
   handle(record: Record): void {
     this.counter++;
 
@@ -390,6 +402,10 @@ export class FilterHandler implements Handler {
     return this.handler.enabled(level);
   }
 
+  needsSource(): boolean {
+    return this.handler.needsSource?.() ?? false;
+  }
+
   handle(record: Record): void {
     if (this.filter(record)) {
       this.handler.handle(record);
@@ -452,6 +468,10 @@ export class ColorHandler implements Handler {
 
   enabled(level: Level): boolean {
     return level >= this.level;
+  }
+
+  needsSource(): boolean {
+    return this.addSource;
   }
 
   private processAttr(attr: Attr): Attr {

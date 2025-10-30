@@ -45,6 +45,10 @@ abstract class BaseHandler implements Handler {
     return level >= minLevel;
   }
 
+  needsSource(): boolean {
+    return this.addSource;
+  }
+
   abstract handle(record: Record): void;
   abstract withAttrs(attrs: Attr[]): Handler;
   abstract withGroup(name: string): Handler;
@@ -637,6 +641,10 @@ export class MultiHandler implements Handler {
 
   enabled(level: Level): boolean {
     return this.handlers.some((h) => h.enabled(level));
+  }
+
+  needsSource(): boolean {
+    return this.handlers.some((h) => h.needsSource?.());
   }
 
   handle(record: Record): void {
