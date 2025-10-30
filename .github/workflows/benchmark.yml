@@ -41,9 +41,13 @@ jobs:
     - name: Display benchmark results
       if: always()
       run: |
-        echo "## Benchmark Results" >> $GITHUB_STEP_SUMMARY
+        echo "# Benchmark Results" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        [ -f benchmarks/BENCH.md ] && cat benchmarks/BENCH.md >> $GITHUB_STEP_SUMMARY
+        if [ -f benchmarks/BENCH.md ]; then
+          cat benchmarks/BENCH.md >> $GITHUB_STEP_SUMMARY
+        else
+          echo "Benchmark results file not found" >> $GITHUB_STEP_SUMMARY
+        fi
 
     - name: Upload benchmark results
       if: always()

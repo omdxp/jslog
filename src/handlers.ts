@@ -662,4 +662,16 @@ export class MultiHandler implements Handler {
   withGroup(name: string): Handler {
     return new MultiHandler(this.handlers.map((h) => h.withGroup(name)));
   }
+
+  /**
+   * Close all wrapped handlers that support closing.
+   * Useful for graceful shutdown when using FileHandler, BufferedHandler, or AsyncHandler.
+   */
+  close(): void {
+    for (const handler of this.handlers) {
+      if ("close" in handler && typeof handler.close === "function") {
+        handler.close();
+      }
+    }
+  }
 }

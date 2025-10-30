@@ -300,11 +300,13 @@ interface HandlerOptions {
 # Install dependencies
 npm install
 
-# Run basic example
+# Run tests (validates all examples)
 npm test
 
-# Run advanced features example
-npm run test:advanced
+# Run individual examples
+npm run test:basic      # Basic logging features
+npm run test:advanced   # Advanced features
+npm run test:beast      # Beast mode (all 20+ features)
 
 # Build
 npm run build
@@ -315,6 +317,55 @@ npm run typecheck
 # Watch mode for development
 npm run dev
 ```
+
+### Running Tests
+
+The test suite validates that all examples work correctly:
+
+```bash
+# Run all tests with assertions
+npm test
+
+# Expected output:
+# Starting test suite
+# Running: Basic Tests
+# PASSED: All 15 expectations met
+# Running: Advanced Tests
+# PASSED: All 22 expectations met
+# Running: Beast Mode Tests
+# PASSED: All 22 expectations met
+# All tests passed!
+```
+
+Tests validate:
+- Basic logging (TextHandler, JSONHandler, attributes, groups, levels)
+- Advanced features (LevelVar, all attribute types, nested groups, replaceAttr, etc.)
+- Beast mode features (20+ advanced handlers and utilities)
+
+### Graceful Shutdown
+
+When using handlers with resources (files, timers, async operations), always call `close()`:
+
+```typescript
+import { New, FileHandler, BufferedHandler, AsyncHandler } from '@omdxp/jslog';
+
+const fileHandler = new FileHandler({ filepath: './logs/app.log' });
+const logger = New(fileHandler);
+
+// On shutdown
+process.on('SIGTERM', async () => {
+  // Close file stream, flush buffers, wait for async operations
+  await fileHandler.close();
+  process.exit(0);
+});
+```
+
+Handlers that need closing:
+- `FileHandler` - Closes file stream
+- `BufferedHandler` - Flushes buffer and clears timer
+- `AsyncHandler` - Waits for pending operations
+- `MultiHandler` - Cascades close to all wrapped handlers
+- `MiddlewareHandler` - Delegates close to wrapped handler
 
 ## Comparison with Go's log/slog
 

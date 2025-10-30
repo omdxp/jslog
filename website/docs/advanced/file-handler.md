@@ -186,12 +186,32 @@ const fileHandler = new FileHandler({
 
 const logger = new Logger(fileHandler);
 
-// On shutdown
+// Graceful shutdown
 process.on('SIGTERM', () => {
+  console.log('Shutting down...');
+  
+  // Close the file stream properly
+  fileHandler.close();
+  
+  console.log('File stream closed');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
   fileHandler.close();
   process.exit(0);
 });
 ```
+
+### What `close()` Does
+
+The `close()` method properly closes the file write stream, ensuring:
+- All buffered data is flushed to disk
+- File descriptor is released
+- No data loss on shutdown
+- Clean process termination
+
+**Important:** Always call `close()` before process exit to prevent data loss.
 
 ## Best Practices
 

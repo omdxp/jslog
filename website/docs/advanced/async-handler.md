@@ -172,7 +172,7 @@ const logger = New(new AsyncHandler({
 
 ## Graceful Shutdown
 
-Ensure all logs are written before shutdown:
+**Important:** AsyncHandler keeps async operations running. Always call `close()` before process exit.
 
 ```typescript
 import { New, AsyncHandler, FileHandler } from '@omdxp/jslog';
@@ -183,18 +183,114 @@ const asyncHandler = new AsyncHandler({
 
 const logger = New(asyncHandler);
 
-// Shutdown handler
+logger.info('Application started');
+logger.info('Processing requests...');
+
+// Graceful shutdown
 async function shutdown() {
-  console.log('Shutting down...');
+  console.log('Shutting down gracefully...');
   
-  // Wait for async logs to finish
+  // Wait for all pending async operations to complete
   await asyncHandler.close();
   
+  console.log('All logs written. Goodbye!');
   process.exit(0);
 }
 
+// Handle shutdown signals
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
+```
+
+### What `close()` Does
+
+1. **Stops accepting new logs** - Any logs after `close()` are silently dropped
+2. **Waits for pending operations** - Returns a Promise that resolves when queue is empty
+3. **Allows clean exit** - Process can terminate without hanging
+
+### Without close() - Process Hangs
+
+```typescript
+const asyncHandler = new AsyncHandler({
+  handler: new FileHandler({ filepath: './logs/app.log' })
+});
+
+const logger = New(asyncHandler);
+
+logger.info('Some log');
+
+// BAD: Process hangs waiting for async operations
+process.exit(0);
+```
+
+### With close() - Clean Exit
+
+```typescript
+const asyncHandler = new AsyncHandler({
+  handler: new FileHandler({ filepath: './logs/app.log' })
+});
+
+const logger = New(asyncHandler);
+
+logger.info('Some log');
+
+// GOOD: Wait for completion then exit
+await asyncHandler.close();
+process.exit(0);
+```
+
+### Express.js Example
+
+```typescript
+import express from 'express';
+import { New, AsyncHandler, JSONHandler } from '@omdxp/jslog';
+
+const asyncHandler = new AsyncHandler({
+  handler: new JSONHandler()
+});
+
+const logger = New(asyncHandler);
+const app = express();
+
+app.get('/users', (req, res) => {
+  logger.info('Fetching users');
+  res.json({ users: [] });
+});
+
+const server = app.listen(3000);
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received');
+  
+  // Stop accepting requests
+  server.close(() => {
+    console.log('Server closed');
+  });
+  
+  // Wait for logs to flush
+  await asyncHandler.close();
+  
+  process.exit(0);
+});
+```
+
+### Docker/Kubernetes
+
+```typescript
+// Handle SIGTERM from container orchestrator
+process.on('SIGTERM', async () => {
+  logger.info('Received SIGTERM, shutting down...');
+  
+  // Close connections, stop accepting traffic, etc.
+  await server.close();
+  
+  // Flush all logs
+  await asyncHandler.close();
+  
+  logger.info('Shutdown complete');
+  process.exit(0);
+});
 ```
 
 ## Performance Comparison
@@ -252,15 +348,17 @@ const logger = New(new AsyncHandler({
 
 **Do:**
 - Always provide an error handler
-- Implement graceful shutdown with `close()`
+- **Call `close()` before process exit**
 - Use for I/O-bound handlers (file, network)
 - Combine with buffering for maximum performance
+- Implement graceful shutdown in production
 
 **Don't:**
 - Use for console output (already async in Node.js)
 - Forget to handle errors
+- Exit process without calling `close()` (will hang)
 - Expect logs to be written synchronously
-- Skip shutdown handling
+- Skip shutdown signal handlers
 
 ## Trade-offs
 

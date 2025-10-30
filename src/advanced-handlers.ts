@@ -302,6 +302,11 @@ export class BufferedHandler implements Handler {
       clearInterval(this.timer);
     }
     this.flush();
+
+    // Close wrapped handler if it supports closing
+    if ("close" in this.handler && typeof this.handler.close === "function") {
+      (this.handler as any).close();
+    }
   }
 }
 
