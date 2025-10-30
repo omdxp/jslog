@@ -29,7 +29,7 @@ jobs:
 
     - name: Install benchmark dependencies
       working-directory: ./benchmarks
-      run: npm install
+      run: npm ci
 
     - name: Run benchmarks
       working-directory: ./benchmarks
