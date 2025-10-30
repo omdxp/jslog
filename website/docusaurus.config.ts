@@ -50,6 +50,10 @@ const config: Config = {
               label: "Next",
               path: "next",
             },
+            "1.3.1": {
+              label: `${latestVersion} (latest)`,
+              path: "/",
+            },
             "1.3.0": {
               label: "1.3.0",
               path: "1.3.0",

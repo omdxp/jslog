@@ -26,29 +26,48 @@ if (!prevVersion) {
   process.exit(0);
 }
 
-// Find the old latest version config and replace it
-const oldLatestPattern = new RegExp(
-  `"${prevVersion}":\\s*\\{\\s*label:\\s*\\\`\\$\\{latestVersion\\}\\s*\\(latest\\)\\\`,\\s*path:\\s*"/",\\s*\\}`,
-  "m"
+// Strategy: Replace the entire versions object
+// Find the versions object and rebuild it with the new version
+
+// Extract everything before "versions: {"
+const beforeVersions = config.match(/([\s\S]*?versions:\s*\{)/)?.[1];
+// Extract everything after the versions object closing brace
+const afterVersions = config.match(/versions:\s*\{[\s\S]*?\n(\s*)\},/)?.[1];
+const afterVersionsContent = config.substring(
+  config.indexOf("versions: {") +
+    config.match(/versions:\s*\{[\s\S]*?\n\s*\},/)?.[0].length
 );
 
-// Replace old latest with regular version entry
-const oldVersionConfig = `"${prevVersion}": {
-              label: "${prevVersion}",
-              path: "${prevVersion}",
-            }`;
+if (!beforeVersions || !afterVersionsContent) {
+  console.error("Could not parse docusaurus.config.ts structure");
+  process.exit(1);
+}
 
-config = config.replace(oldLatestPattern, oldVersionConfig);
+// Build versions config entries for all versions except the new one
+const versionEntries = versions
+  .filter((v) => v !== newVersion)
+  .map((v) => {
+    return `            "${v}": {
+              label: "${v}",
+              path: "${v}",
+            },`;
+  })
+  .join("\n");
 
-// Now add the new version as latest after "current" entry
-const currentPattern = /("current":\s*\{[^}]*\},)/;
-const newLatestConfig = `$1
+// Build the complete versions object
+const newVersionsObject = `versions: {
+            current: {
+              label: "Next",
+              path: "next",
+            },
             "${newVersion}": {
               label: \`\${latestVersion} (latest)\`,
               path: "/",
-            },`;
+            },
+${versionEntries}
+          },`;
 
-config = config.replace(currentPattern, newLatestConfig);
+config = beforeVersions + newVersionsObject + afterVersionsContent;
 
 fs.writeFileSync(configPath, config, "utf8");
 console.log(
