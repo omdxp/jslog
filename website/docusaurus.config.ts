@@ -45,7 +45,7 @@ const config: Config = {
           sidebarPath: "./sidebars.ts",
           editUrl: "https://github.com/omdxp/jslog/tree/main/website/",
           lastVersion: latestVersion,
-          versions: {versions: {
+          versions: {
             current: {
               label: "Next",
               path: "next",
@@ -54,30 +54,9 @@ const config: Config = {
               label: `${latestVersion} (latest)`,
               path: "/",
             },
-            "1.0.0": {
-              label: "1.0.0",
-              path: "1.0.0",
-            },
-            "1.1.2": {
-              label: "1.1.2",
-              path: "1.1.2",
-            },
-            "1.2.0": {
-              label: "1.2.0",
-              path: "1.2.0",
-            },
-            "1.3.0": {
-              label: "1.3.0",
-              path: "1.3.0",
-            },
             "1.3.1": {
               label: "1.3.1",
               path: "1.3.1",
-            },
-          },
-            "1.3.1": {
-              label: `${latestVersion} (latest)`,
-              path: "/",
             },
             "1.3.0": {
               label: "1.3.0",
