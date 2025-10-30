@@ -254,7 +254,7 @@ const main = () => {
   const throughputResults = parseThroughputResults(throughputOutput);
 
   // Generate markdown
-  let markdown = `# Benchmark Results\n\n`;
+  let markdown = `\n\n`;
   markdown += `> Last updated: ${timestamp}\n\n`;
   markdown += `## System Information\n\n`;
   markdown += `- **Platform**: ${sysInfo.platform} (${sysInfo.arch})\n`;

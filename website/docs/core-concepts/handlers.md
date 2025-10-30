@@ -103,6 +103,46 @@ const handler = new MultiHandler([
 const logger = new Logger(handler);
 ```
 
+#### Graceful Shutdown with MultiHandler
+
+MultiHandler automatically closes all wrapped handlers that support it:
+
+```typescript
+import { MultiHandler, FileHandler, BufferedHandler, AsyncHandler, JSONHandler } from '@omdxp/jslog';
+
+const multiHandler = new MultiHandler([
+  new FileHandler({ filepath: './logs/app.log' }),
+  new BufferedHandler({ 
+    handler: new JSONHandler(),
+    bufferSize: 100 
+  }),
+  new AsyncHandler({ 
+    handler: new FileHandler({ filepath: './logs/async.log' })
+  })
+]);
+
+const logger = new Logger(multiHandler);
+
+// On shutdown, close all handlers at once
+process.on('SIGTERM', async () => {
+  // This calls close() on all wrapped handlers and waits for async operations
+  await multiHandler.close();
+  process.exit(0);
+});
+```
+
+The `close()` method:
+- Returns a Promise that resolves when all handlers are closed
+- Handles both sync and async close methods automatically
+- Waits for all async operations to complete (AsyncHandler, nested handlers)
+- Ensures proper cleanup of all resources
+
+Cascades to all wrapped handlers, ensuring:
+- File streams are closed (FileHandler)
+- Buffers are flushed (BufferedHandler)
+- Timers are cleared (BufferedHandler)
+- Async operations complete (AsyncHandler)
+
 ### DiscardHandler
 
 Discard all logs (useful for testing or benchmarking):

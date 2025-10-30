@@ -33,11 +33,31 @@ jobs:
     - name: Build
       run: npm run build
 
-    - name: Run basic tests
+    - name: Run tests with assertions
+      id: tests
       run: npm test
+      continue-on-error: true
 
-    - name: Run advanced tests
-      run: npm run test:advanced
+    - name: Test results summary
+      if: always()
+      run: |
+        echo "# Test Results - Node.js ${{ matrix.node-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.tests.outcome }}" == "success" ]; then
+          echo "**Status:** PASSED" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All example tests passed validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tests validated:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Basic logging features" >> $GITHUB_STEP_SUMMARY
+          echo "- Advanced features (LevelVar, all attribute types, groups, etc)" >> $GITHUB_STEP_SUMMARY
+          echo "- Beast mode features (20+ advanced features)" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "**Status:** FAILED" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Test validation failed" >> $GITHUB_STEP_SUMMARY
+        fi
 
-    - name: Run beast mode tests
-      run: timeout 10 npm run test:beast || true
+    - name: Fail job if tests failed
+      if: steps.tests.outcome != 'success'
+      run: exit 1

@@ -28,7 +28,8 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsx watch src/index.ts",
-    "test": "tsx src/examples/basic.ts",
+    "test": "node scripts/test-runner.js",
+    "test:basic": "tsx src/examples/basic.ts",
     "test:advanced": "tsx src/examples/advanced.ts",
     "test:beast": "tsx src/examples/beast-mode.ts",
     "typecheck": "tsc --noEmit",

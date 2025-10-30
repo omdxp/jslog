@@ -12,6 +12,7 @@ export class AsyncHandler implements Handler {
   private handler: Handler;
   private errorHandler?: (error: Error) => void;
   private queue: Promise<void> = Promise.resolve();
+  private closed: boolean = false;
 
   constructor(options: AsyncHandlerOptions) {
     this.handler = options.handler;
@@ -27,6 +28,10 @@ export class AsyncHandler implements Handler {
   }
 
   handle(record: Record): void {
+    if (this.closed) {
+      return; // Silently drop logs after close
+    }
+
     // Queue the operation to ensure order
     this.queue = this.queue
       .then(() => {
@@ -49,6 +54,39 @@ export class AsyncHandler implements Handler {
           this.errorHandler(error);
         }
       });
+  }
+
+  /**
+   * Close the handler and wait for all pending async operations to complete.
+   * After calling close(), any new log records will be silently dropped.
+   *
+   * @returns Promise that resolves when all pending operations are complete
+   *
+   * @example
+   * ```typescript
+   * const handler = new AsyncHandler({ handler: new JSONHandler() });
+   * const logger = New(handler);
+   *
+   * logger.info("Processing...");
+   *
+   * // Graceful shutdown
+   * await handler.close();
+   * process.exit(0);
+   * ```
+   */
+  async close(): Promise<void> {
+    this.closed = true;
+    await this.queue;
+
+    // Close wrapped handler if it supports closing
+    if ("close" in this.handler && typeof this.handler.close === "function") {
+      const closeMethod = (this.handler as any).close;
+      // Handle both sync and async close methods
+      const result = closeMethod.call(this.handler);
+      if (result && typeof result.then === "function") {
+        await result;
+      }
+    }
   }
 
   withAttrs(attrs: Attr[]): Handler {
@@ -127,6 +165,21 @@ export class MiddlewareHandler implements Handler {
       handler: this.handler.withGroup(name),
       middleware: this.middleware,
     });
+  }
+
+  /**
+   * Close the wrapped handler if it supports closing.
+   * Handles both sync and async close methods properly.
+   * Delegates to the underlying handler's close method.
+   */
+  async close(): Promise<void> {
+    if ("close" in this.handler && typeof this.handler.close === "function") {
+      const result = (this.handler as any).close();
+      // If it returns a Promise, await it
+      if (result && typeof result.then === "function") {
+        await result;
+      }
+    }
   }
 }
 

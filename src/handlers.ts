@@ -662,4 +662,26 @@ export class MultiHandler implements Handler {
   withGroup(name: string): Handler {
     return new MultiHandler(this.handlers.map((h) => h.withGroup(name)));
   }
+
+  /**
+   * Close all wrapped handlers that support closing.
+   * Handles both sync and async close methods properly.
+   * Useful for graceful shutdown when using FileHandler, BufferedHandler, or AsyncHandler.
+   */
+  async close(): Promise<void> {
+    const closePromises: Promise<void>[] = [];
+
+    for (const handler of this.handlers) {
+      if ("close" in handler && typeof handler.close === "function") {
+        const result = (handler as any).close();
+        // If it returns a Promise, collect it
+        if (result && typeof result.then === "function") {
+          closePromises.push(result);
+        }
+      }
+    }
+
+    // Wait for all async close operations to complete
+    await Promise.all(closePromises);
+  }
 }

@@ -297,11 +297,20 @@ export class BufferedHandler implements Handler {
     });
   }
 
-  close(): void {
+  async close(): Promise<void> {
     if (this.timer) {
       clearInterval(this.timer);
     }
     this.flush();
+
+    // Close wrapped handler if it supports closing
+    if ("close" in this.handler && typeof this.handler.close === "function") {
+      const result = (this.handler as any).close();
+      // If it returns a Promise, await it
+      if (result && typeof result.then === "function") {
+        await result;
+      }
+    }
   }
 }
 
