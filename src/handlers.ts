@@ -10,17 +10,30 @@ import {
 import { Writable } from "stream";
 
 /**
- * HandlerOptions configures a Handler
+ * Configuration options for handler construction.
+ *
+ * These options control handler behavior including minimum log level,
+ * source tracking, attribute transformation, and output destination.
  */
 export interface HandlerOptions {
+  /** Minimum level to log. Can be static Level or dynamic LevelVar (default: INFO) */
   level?: Level | LevelVar;
+  /** Whether to capture and include source location (file, line, function) (default: false) */
   addSource?: boolean;
+  /** Optional function to transform or filter attributes before output */
   replaceAttr?: (groups: string[], attr: Attr) => Attr;
-  writer?: Writable; // Stream to write to (defaults to stdout)
+  /** Stream to write output to (default: process.stdout) */
+  writer?: Writable;
 }
 
 /**
- * Base handler with common functionality
+ * Base handler providing common functionality for all handlers.
+ *
+ * Implements level filtering, source tracking configuration, attribute transformation,
+ * and output stream management. Concrete handlers extend this class and implement
+ * the abstract methods for specific output formats.
+ *
+ * @internal
  */
 abstract class BaseHandler implements Handler {
   protected level: Level | LevelVar;
@@ -53,6 +66,12 @@ abstract class BaseHandler implements Handler {
   abstract withAttrs(attrs: Attr[]): Handler;
   abstract withGroup(name: string): Handler;
 
+  /**
+   * Applies attribute transformation if configured.
+   *
+   * @param attr - The attribute to process
+   * @returns The transformed attribute or the original if no transformation is configured
+   */
   protected processAttr(attr: Attr): Attr {
     if (this.replaceAttr) {
       return this.replaceAttr(this.groups, attr);
@@ -62,8 +81,18 @@ abstract class BaseHandler implements Handler {
 }
 
 /**
- * TextHandler outputs logs in a text format
- * Similar to Go's slog.TextHandler
+ * TextHandler outputs logs in a key=value text format.
+ *
+ * Similar to Go's slog.TextHandler, this handler produces human-readable
+ * structured logs suitable for development and traditional log aggregation systems.
+ *
+ * @example
+ * ```typescript
+ * const handler = new TextHandler({ level: Level.INFO, addSource: true });
+ * const logger = new Logger(handler);
+ * logger.info("Server started", Int("port", 3000));
+ * // Output: time=2024-01-15T10:30:00.000Z level=INFO msg="Server started" port=3000
+ * ```
  */
 export class TextHandler extends BaseHandler {
   private hasGroups: boolean = false;
@@ -309,8 +338,18 @@ export class TextHandler extends BaseHandler {
 }
 
 /**
- * JSONHandler outputs logs in JSON format
- * Similar to Go's slog.JSONHandler
+ * JSONHandler outputs logs in JSON format.
+ *
+ * Similar to Go's slog.JSONHandler, produces machine-readable JSON logs
+ * suitable for structured log aggregation and analysis systems.
+ *
+ * @example
+ * ```typescript
+ * const handler = new JSONHandler({ level: Level.INFO });
+ * const logger = new Logger(handler);
+ * logger.info("User login", String("userId", "123"), String("ip", "1.2.3.4"));
+ * // Output: {"time":"2024-01-15T10:30:00.000Z","level":"INFO","msg":"User login","userId":"123","ip":"1.2.3.4"}
+ * ```
  */
 export class JSONHandler extends BaseHandler {
   private hasGroups: boolean = false;
@@ -612,8 +651,18 @@ export class JSONHandler extends BaseHandler {
 }
 
 /**
- * DiscardHandler discards all log records
- * Useful for benchmarking or disabling logging
+ * DiscardHandler discards all log records without processing them.
+ *
+ * Useful for benchmarking logger performance overhead or completely
+ * disabling logging in production without changing application code.
+ *
+ * @example
+ * ```typescript
+ * // Benchmark logger overhead
+ * const handler = new DiscardHandler();
+ * const logger = new Logger(handler);
+ * logger.info("This is discarded"); // No-op, zero cost
+ * ```
  */
 export class DiscardHandler implements Handler {
   enabled(_level: Level): boolean {
@@ -621,7 +670,7 @@ export class DiscardHandler implements Handler {
   }
 
   handle(_record: Record): void {
-    // Do nothing
+    // Do nothing - discard all logs
   }
 
   withAttrs(_attrs: Attr[]): Handler {
@@ -634,9 +683,27 @@ export class DiscardHandler implements Handler {
 }
 
 /**
- * MultiHandler sends records to multiple handlers
+ * MultiHandler sends log records to multiple handlers simultaneously.
+ *
+ * Allows logging to multiple destinations (e.g., console and file) with a single logger.
+ *
+ * @example
+ * ```typescript
+ * const handler = new MultiHandler([
+ *   new TextHandler({ writer: process.stdout }),
+ *   new JSONHandler({ writer: fileStream }),
+ *   new FileHandler({ filepath: './app.log' })
+ * ]);
+ * const logger = new Logger(handler);
+ * logger.info("Event occurred"); // Logged to all three destinations
+ * ```
  */
 export class MultiHandler implements Handler {
+  /**
+   * Creates a MultiHandler that distributes logs to multiple handlers.
+   *
+   * @param handlers - Array of handlers to send logs to
+   */
   constructor(private handlers: Handler[]) {}
 
   enabled(level: Level): boolean {
@@ -664,9 +731,27 @@ export class MultiHandler implements Handler {
   }
 
   /**
-   * Close all wrapped handlers that support closing.
-   * Handles both sync and async close methods properly.
-   * Useful for graceful shutdown when using FileHandler, BufferedHandler, or AsyncHandler.
+   * Closes all wrapped handlers that support closing.
+   *
+   * Cascades the close operation to all child handlers, properly handling both
+   * synchronous and asynchronous close methods. Waits for all async operations
+   * to complete in parallel before returning.
+   *
+   * Useful for graceful shutdown when using FileHandler, BufferedHandler, AsyncHandler,
+   * or other handlers that manage resources requiring cleanup.
+   *
+   * @returns A promise that resolves when all handlers have closed
+   *
+   * @example
+   * ```typescript
+   * const multiHandler = new MultiHandler([
+   *   new FileHandler({ filepath: './app.log' }),
+   *   new BufferedHandler({ handler: consoleHandler })
+   * ]);
+   *
+   * // On shutdown
+   * await multiHandler.close();
+   * ```
    */
   async close(): Promise<void> {
     const closePromises: Promise<void>[] = [];

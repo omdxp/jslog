@@ -3,18 +3,47 @@ import * as fs from "fs";
 import * as path from "path";
 
 /**
- * FileHandler - Write logs to files (Go slog doesn't have this! 😎)
+ * Configuration options for FileHandler.
  */
 export interface FileHandlerOptions {
+  /** Minimum log level to write (default: INFO) */
   level?: Level;
+  /** File path to write logs to */
   filepath: string;
-  maxSize?: number; // Max size in bytes before rotation
-  maxFiles?: number; // Max number of backup files
+  /** Maximum file size in bytes before rotation (default: 10MB) */
+  maxSize?: number;
+  /** Maximum number of backup files to keep (default: 5) */
+  maxFiles?: number;
+  /** Output format: "text" for key=value or "json" for JSON (default: "json") */
   format?: "text" | "json";
+  /** Whether to include source location information (default: false) */
   addSource?: boolean;
+  /** Optional function to transform attributes before output */
   replaceAttr?: (groups: string[], attr: Attr) => Attr;
 }
 
+/**
+ * FileHandler writes logs to files with automatic rotation.
+ *
+ * Provides built-in file rotation based on size limits, similar to logrotate.
+ * Automatically creates the target directory if it doesn't exist.
+ * Supports both text and JSON output formats.
+ *
+ * @example
+ * ```typescript
+ * const handler = new FileHandler({
+ *   filepath: './logs/app.log',
+ *   maxSize: 10 * 1024 * 1024,  // 10MB
+ *   maxFiles: 5,                 // Keep 5 backups
+ *   format: 'json'
+ * });
+ * const logger = new Logger(handler);
+ * logger.info("Event logged to file");
+ *
+ * // Don't forget to close on shutdown
+ * await handler.close();
+ * ```
+ */
 export class FileHandler implements Handler {
   private level: Level;
   private filepath: string;
@@ -216,29 +245,72 @@ export class FileHandler implements Handler {
   }
 
   withAttrs(_attrs: Attr[]): Handler {
-    // File handler doesn't support persistent attrs for simplicity
+    // File handler doesn't support persistent attributes for simplicity
+    // to avoid complexity in file format handling
     return this;
   }
 
   withGroup(_name: string): Handler {
     // File handler doesn't support groups for simplicity
+    // to avoid complexity in file format handling
     return this;
   }
 
+  /**
+   * Closes the file stream.
+   *
+   * Call this method during graceful shutdown to ensure all buffered data is written
+   * and the file handle is properly closed.
+   *
+   * @example
+   * ```typescript
+   * process.on('SIGTERM', () => {
+   *   fileHandler.close();
+   *   process.exit(0);
+   * });
+   * ```
+   */
   close(): void {
     this.stream.end();
   }
 }
 
 /**
- * BufferedHandler - Buffer logs and flush periodically (Go slog ain't got this!)
+ * Configuration options for BufferedHandler.
  */
 export interface BufferedHandlerOptions {
+  /** The underlying handler to buffer logs for */
   handler: Handler;
-  bufferSize?: number; // Number of records to buffer
-  flushInterval?: number; // Milliseconds between flushes
+  /** Number of records to buffer before flushing (default: 100) */
+  bufferSize?: number;
+  /** Milliseconds between automatic flushes (default: 1000) */
+  flushInterval?: number;
 }
 
+/**
+ * BufferedHandler buffers log records and flushes them in batches.
+ *
+ * Improves performance by reducing the number of I/O operations, especially useful
+ * when writing to files or external services. Automatically flushes based on buffer
+ * size or time interval.
+ *
+ * @example
+ * ```typescript
+ * const handler = new BufferedHandler({
+ *   handler: new FileHandler({ filepath: './app.log' }),
+ *   bufferSize: 100,      // Flush after 100 logs
+ *   flushInterval: 1000   // Or every 1 second
+ * });
+ * const logger = new Logger(handler);
+ *
+ * logger.info("Buffered log"); // Held in memory
+ * // ... 99 more logs ...
+ * logger.info("This triggers flush"); // All 100 written at once
+ *
+ * // On shutdown, ensure all logs are written
+ * await handler.close();
+ * ```
+ */
 export class BufferedHandler implements Handler {
   private handler: Handler;
   private buffer: Record[] = [];
@@ -270,6 +342,17 @@ export class BufferedHandler implements Handler {
     }
   }
 
+  /**
+   * Manually flushes all buffered records to the underlying handler.
+   *
+   * Useful for ensuring logs are written before a checkpoint or manual sync.
+   * This is automatically called when the buffer is full or on the flush interval.
+   *
+   * @example
+   * ```typescript
+   * bufferedHandler.flush(); // Force immediate write
+   * ```
+   */
   flush(): void {
     if (this.buffer.length === 0) return;
 
@@ -297,6 +380,23 @@ export class BufferedHandler implements Handler {
     });
   }
 
+  /**
+   * Stops the flush timer, flushes remaining logs, and closes the wrapped handler.
+   *
+   * This method should be called during graceful shutdown to ensure all buffered
+   * logs are written and any resources held by the wrapped handler are released.
+   * Properly handles both synchronous and asynchronous close methods on the wrapped handler.
+   *
+   * @returns A promise that resolves when the handler is fully closed
+   *
+   * @example
+   * ```typescript
+   * process.on('SIGTERM', async () => {
+   *   await bufferedHandler.close();
+   *   process.exit(0);
+   * });
+   * ```
+   */
   async close(): Promise<void> {
     if (this.timer) {
       clearInterval(this.timer);
@@ -315,15 +415,41 @@ export class BufferedHandler implements Handler {
 }
 
 /**
- * SamplingHandler - Only log a percentage of messages (performance beast!)
+ * Configuration options for SamplingHandler.
  */
 export interface SamplingHandlerOptions {
+  /** The underlying handler to send sampled logs to */
   handler: Handler;
-  rate?: number; // 0.0 to 1.0 (0.1 = 10% of logs)
-  initialCount?: number; // Always log first N messages
-  thereafter?: number; // Then log 1 in N messages
+  /** Sampling rate from 0.0 to 1.0 (e.g., 0.1 = 10% of logs) */
+  rate?: number;
+  /** Always log the first N messages (default: 0) */
+  initialCount?: number;
+  /** After initial count, log 1 in N messages (default: 1) */
+  thereafter?: number;
 }
 
+/**
+ * SamplingHandler samples log records based on configurable criteria.
+ *
+ * Reduces log volume during high-throughput scenarios by only processing a percentage
+ * of log messages. Useful for production environments with high log verbosity.
+ *
+ * @example
+ * ```typescript
+ * // Log 10% of messages
+ * const handler = new SamplingHandler({
+ *   handler: new TextHandler(),
+ *   rate: 0.1  // 10%
+ * });
+ *
+ * // Always log first 100, then 1 in 10
+ * const handler = new SamplingHandler({
+ *   handler: new TextHandler(),
+ *   initialCount: 100,
+ *   thereafter: 10
+ * });
+ * ```
+ */
 export class SamplingHandler implements Handler {
   private handler: Handler;
   private rate: number;
@@ -391,13 +517,39 @@ export class SamplingHandler implements Handler {
 }
 
 /**
- * FilterHandler - Filter logs based on custom criteria (sick flexibility!)
+ * Configuration options for FilterHandler.
  */
 export interface FilterHandlerOptions {
+  /** The underlying handler to send filtered logs to */
   handler: Handler;
+  /** Filter function that returns true to allow the log, false to discard it */
   filter: (record: Record) => boolean;
 }
 
+/**
+ * FilterHandler filters log records based on custom criteria.
+ *
+ * Allows fine-grained control over which logs are processed based on any
+ * property of the log record (message, level, attributes, etc.).
+ *
+ * @example
+ * ```typescript
+ * // Only log messages containing "error"
+ * const handler = new FilterHandler({
+ *   handler: new TextHandler(),
+ *   filter: (record) => record.message.toLowerCase().includes('error')
+ * });
+ *
+ * // Only log specific user IDs
+ * const handler = new FilterHandler({
+ *   handler: new TextHandler(),
+ *   filter: (record) => {
+ *     const userId = record.attrs.find(a => a.key === 'userId')?.value;
+ *     return userId === '123' || userId === '456';
+ *   }
+ * });
+ * ```
+ */
 export class FilterHandler implements Handler {
   private handler: Handler;
   private filter: (record: Record) => boolean;
@@ -437,15 +589,23 @@ export class FilterHandler implements Handler {
 }
 
 /**
- * ColorHandler - Colorful console output (make it pretty! 🌈)
+ * Configuration options for ColorHandler.
  */
 export interface ColorHandlerOptions {
+  /** Minimum log level to output (default: INFO) */
   level?: Level;
+  /** Whether to colorize output (default: true) */
   colorize?: boolean;
+  /** Whether to include source location information (default: false) */
   addSource?: boolean;
+  /** Optional function to transform attributes before output */
   replaceAttr?: (groups: string[], attr: Attr) => Attr;
 }
 
+/**
+ * ANSI color codes for terminal output.
+ * @internal
+ */
 const COLORS = {
   reset: "\x1b[0m",
   bright: "\x1b[1m",
@@ -460,6 +620,27 @@ const COLORS = {
   gray: "\x1b[90m",
 };
 
+/**
+ * ColorHandler outputs colorized logs to the console.
+ *
+ * Provides syntax-highlighted log output for improved readability during development.
+ * Automatically applies appropriate colors based on log level.
+ *
+ * @example
+ * ```typescript
+ * const handler = new ColorHandler({
+ *   level: Level.DEBUG,
+ *   colorize: true,
+ *   addSource: true
+ * });
+ * const logger = new Logger(handler);
+ *
+ * logger.debug("Debug message");  // Cyan
+ * logger.info("Info message");    // Green
+ * logger.warn("Warning");         // Yellow
+ * logger.error("Error occurred"); // Red (bright)
+ * ```
+ */
 export class ColorHandler implements Handler {
   private level: Level;
   private colorize: boolean;

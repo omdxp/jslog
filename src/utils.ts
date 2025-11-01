@@ -1,21 +1,43 @@
 import { Attr, Value } from "./logger";
 
 /**
- * Utility functions for jslog
+ * Timer for measuring operation duration with high precision.
  *
- * Performance measurement utilities (Go slog can't do this!)
+ * Uses `performance.now()` for accurate timing measurements.
+ * Useful for logging operation durations and performance metrics.
+ *
+ * @example
+ * ```typescript
+ * const timer = new Timer("db_query");
+ * await executeQuery();
+ * logger.info("Query completed", timer.elapsed());
+ * // Logs: db_query=15.23ms
+ * ```
  */
 export class Timer {
   private start: number;
   private name: string;
 
+  /**
+   * Creates a new timer with the specified name.
+   *
+   * @param name - The name to use for the elapsed time attribute
+   */
   constructor(name: string) {
     this.name = name;
     this.start = performance.now();
   }
 
   /**
-   * Get elapsed time as an attribute
+   * Returns the elapsed time as a log attribute.
+   *
+   * @returns An Attr with the timer name and formatted elapsed time
+   *
+   * @example
+   * ```typescript
+   * logger.info("Operation done", timer.elapsed());
+   * // Output: operation_time=123.45ms
+   * ```
    */
   elapsed(): Attr {
     const ms = performance.now() - this.start;
@@ -23,7 +45,16 @@ export class Timer {
   }
 
   /**
-   * Get elapsed time in milliseconds
+   * Returns the elapsed time in milliseconds as a number.
+   *
+   * @returns Elapsed time in milliseconds
+   *
+   * @example
+   * ```typescript
+   * if (timer.elapsedMs() > 1000) {
+   *   logger.warn("Slow operation", Int("duration", timer.elapsedMs()));
+   * }
+   * ```
    */
   elapsedMs(): number {
     return performance.now() - this.start;
@@ -31,27 +62,71 @@ export class Timer {
 }
 
 /**
- * Start a timer - use with logger
+ * Creates and starts a new timer.
+ *
+ * Convenience function for creating Timer instances.
+ *
+ * @param name - The name to use for the elapsed time attribute (default: "elapsed")
+ * @returns A new Timer instance
+ *
+ * @example
+ * ```typescript
+ * const timer = startTimer("api_call");
+ * await fetch('/api/data');
+ * logger.info("API call completed", timer.elapsed());
+ * ```
  */
 export function startTimer(name: string = "elapsed"): Timer {
   return new Timer(name);
 }
 
 /**
- * Context bag for carrying values (better than Go's context!)
+ * Context bag for carrying structured data across log calls.
+ *
+ * Similar to context.Context in Go but specifically designed for logging.
+ * Allows accumulating key-value pairs that can be converted to log attributes.
+ *
+ * @example
+ * ```typescript
+ * const ctx = new LogContext()
+ *   .set("requestId", "abc-123")
+ *   .set("userId", "user-456")
+ *   .set("env", "production");
+ *
+ * logger.infoContext("Request processed", ctx);
+ * // Includes all context attributes in the log
+ * ```
  */
 export class LogContext {
   private data: Map<string, Value> = new Map();
 
+  /**
+   * Sets a key-value pair in the context.
+   *
+   * @param key - The attribute key
+   * @param value - The attribute value
+   * @returns This context for method chaining
+   */
   set(key: string, value: Value): LogContext {
     this.data.set(key, value);
     return this;
   }
 
+  /**
+   * Gets a value from the context.
+   *
+   * @param key - The attribute key
+   * @returns The value if found, undefined otherwise
+   */
   get(key: string): Value | undefined {
     return this.data.get(key);
   }
 
+  /**
+   * Converts the context to an array of log attributes.
+   *
+   * @returns Array of Attr objects
+   */
   toAttrs(): Attr[] {
     return Array.from(this.data.entries()).map(([key, value]) => ({
       key,
@@ -59,6 +134,22 @@ export class LogContext {
     }));
   }
 
+  /**
+   * Merges this context with another, returning a new context.
+   *
+   * Values from the other context override values from this context.
+   *
+   * @param other - The context to merge with
+   * @returns A new merged LogContext
+   *
+   * @example
+   * ```typescript
+   * const baseCtx = new LogContext().set("env", "prod");
+   * const requestCtx = new LogContext().set("requestId", "123");
+   * const merged = baseCtx.merge(requestCtx);
+   * // Contains both env and requestId
+   * ```
+   */
   merge(other: LogContext): LogContext {
     const merged = new LogContext();
     this.data.forEach((v, k) => merged.set(k, v));
@@ -68,36 +159,102 @@ export class LogContext {
 }
 
 /**
- * Batch attribute builder (fluent interface FTW!)
+ * Fluent builder for constructing attribute arrays.
+ *
+ * Provides a convenient fluent interface for building multiple attributes
+ * with proper typing and method chaining.
+ *
+ * @example
+ * ```typescript
+ * const attrs = new AttrBuilder()
+ *   .str("username", "john")
+ *   .num("age", 30)
+ *   .bool("active", true)
+ *   .time("lastLogin", new Date())
+ *   .build();
+ *
+ * logger.info("User data", ...attrs);
+ * ```
  */
 export class AttrBuilder {
   private attrs: Attr[] = [];
 
+  /**
+   * Adds a string attribute.
+   *
+   * @param key - The attribute key
+   * @param value - The string value
+   * @returns This builder for method chaining
+   */
   str(key: string, value: string): AttrBuilder {
     this.attrs.push({ key, value });
     return this;
   }
 
+  /**
+   * Adds a numeric attribute.
+   *
+   * @param key - The attribute key
+   * @param value - The numeric value
+   * @returns This builder for method chaining
+   */
   num(key: string, value: number): AttrBuilder {
     this.attrs.push({ key, value });
     return this;
   }
 
+  /**
+   * Adds a boolean attribute.
+   *
+   * @param key - The attribute key
+   * @param value - The boolean value
+   * @returns This builder for method chaining
+   */
   bool(key: string, value: boolean): AttrBuilder {
     this.attrs.push({ key, value });
     return this;
   }
 
+  /**
+   * Adds a time/date attribute.
+   *
+   * @param key - The attribute key
+   * @param value - The Date value
+   * @returns This builder for method chaining
+   */
   time(key: string, value: Date): AttrBuilder {
     this.attrs.push({ key, value });
     return this;
   }
 
+  /**
+   * Adds an attribute with any value type.
+   *
+   * @param key - The attribute key
+   * @param value - The value of any type
+   * @returns This builder for method chaining
+   */
   any(key: string, value: any): AttrBuilder {
     this.attrs.push({ key, value });
     return this;
   }
 
+  /**
+   * Adds an error attribute with structured error information.
+   *
+   * @param error - The Error object to log
+   * @returns This builder for method chaining
+   *
+   * @example
+   * ```typescript
+   * try {
+   *   // ... code ...
+   * } catch (e) {
+   *   const attrs = new AttrBuilder().err(e).str("operation", "save").build();
+   *   logger.error("Operation failed", ...attrs);
+   * }
+   * ```
+   */
   err(error: Error): AttrBuilder {
     this.attrs.push({
       key: "error",
@@ -111,7 +268,21 @@ export class AttrBuilder {
   }
 
   /**
-   * Add attribute only if condition is true
+   * Conditionally adds an attribute only if the condition is true.
+   *
+   * @param condition - Whether to add the attribute
+   * @param key - The attribute key
+   * @param value - The attribute value
+   * @returns This builder for method chaining
+   *
+   * @example
+   * ```typescript
+   * const attrs = new AttrBuilder()
+   *   .str("username", "john")
+   *   .if(isAdmin, "role", "admin")
+   *   .if(hasPermissions, "permissions", permissions)
+   *   .build();
+   * ```
    */
   if(condition: boolean, key: string, value: Value): AttrBuilder {
     if (condition) {
@@ -121,7 +292,16 @@ export class AttrBuilder {
   }
 
   /**
-   * Add multiple attributes from object
+   * Adds multiple attributes from an object.
+   *
+   * @param obj - Object whose properties will be converted to attributes
+   * @returns This builder for method chaining
+   *
+   * @example
+   * ```typescript
+   * const userData = { id: "123", name: "Alice", active: true };
+   * const attrs = new AttrBuilder().from(userData).build();
+   * ```
    */
   from(obj: Record<string, Value>): AttrBuilder {
     for (const [key, value] of Object.entries(obj)) {
@@ -130,13 +310,27 @@ export class AttrBuilder {
     return this;
   }
 
+  /**
+   * Builds and returns the array of attributes.
+   *
+   * @returns Array of constructed Attr objects
+   */
   build(): Attr[] {
     return this.attrs;
   }
 }
 
 /**
- * Quick attr builder
+ * Creates a new AttrBuilder instance.
+ *
+ * Convenience function for fluent attribute construction.
+ *
+ * @returns A new AttrBuilder instance
+ *
+ * @example
+ * ```typescript
+ * logger.info("Event", ...attrs().str("user", "john").num("count", 5).build());
+ * ```
  */
 export function attrs(): AttrBuilder {
   return new AttrBuilder();

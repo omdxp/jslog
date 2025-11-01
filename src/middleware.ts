@@ -1,13 +1,37 @@
 import { Handler, Record, Level, Attr } from "./logger";
 
 /**
- * Async handler for non-blocking log operations (Go can't do this easily!)
+ * Configuration options for AsyncHandler.
  */
 export interface AsyncHandlerOptions {
+  /** The underlying handler to process logs asynchronously */
   handler: Handler;
+  /** Optional callback for handling errors during async log processing */
   errorHandler?: (error: Error) => void;
 }
 
+/**
+ * AsyncHandler processes log records asynchronously in the background.
+ *
+ * Ensures logging operations never block the main thread by queueing records
+ * and processing them via setImmediate. Maintains log order while providing
+ * non-blocking performance.
+ *
+ * @example
+ * ```typescript
+ * const handler = new AsyncHandler({
+ *   handler: new FileHandler({ filepath: './app.log' }),
+ *   errorHandler: (err) => console.error('Log error:', err)
+ * });
+ * const logger = new Logger(handler);
+ *
+ * logger.info("This returns immediately");
+ * // Log is written in the background
+ *
+ * // On shutdown
+ * await handler.close();
+ * ```
+ */
 export class AsyncHandler implements Handler {
   private handler: Handler;
   private errorHandler?: (error: Error) => void;
@@ -57,7 +81,12 @@ export class AsyncHandler implements Handler {
   }
 
   /**
-   * Close the handler and wait for all pending async operations to complete.
+   * Closes the handler and waits for all pending async operations to complete.
+   *
+   * Sets the handler to closed state (rejecting new logs), waits for the queue
+   * to drain, then closes the wrapped handler if it supports closing.
+   * Properly handles both synchronous and asynchronous close methods.
+   *
    * After calling close(), any new log records will be silently dropped.
    *
    * @returns Promise that resolves when all pending operations are complete
@@ -65,7 +94,7 @@ export class AsyncHandler implements Handler {
    * @example
    * ```typescript
    * const handler = new AsyncHandler({ handler: new JSONHandler() });
-   * const logger = New(handler);
+   * const logger = new Logger(handler);
    *
    * logger.info("Processing...");
    *
@@ -103,24 +132,68 @@ export class AsyncHandler implements Handler {
     });
   }
 
+  /**
+   * Flushes any pending async operations.
+   *
+   * Waits for the current queue to drain. Useful for ensuring all logs
+   * are processed before continuing with critical operations.
+   *
+   * @returns Promise that resolves when the queue is empty
+   */
   async flush(): Promise<void> {
     await this.queue;
   }
 }
 
 /**
- * Middleware pattern for handlers (composition baby! 🎨)
+ * Middleware function type for transforming log records.
+ *
+ * Middleware can inspect, modify, or filter log records before they reach the handler.
+ *
+ * @param record - The log record to process
+ * @param next - Function to call the next middleware or handler
  */
 export type HandlerMiddleware = (
   record: Record,
   next: (record: Record) => void
 ) => void;
 
+/**
+ * Configuration options for MiddlewareHandler.
+ */
 export interface MiddlewareHandlerOptions {
+  /** The underlying handler to process logs after middleware */
   handler: Handler;
+  /** Array of middleware functions to apply in order */
   middleware: HandlerMiddleware[];
 }
 
+/**
+ * MiddlewareHandler applies a chain of middleware transformations to log records.
+ *
+ * Middleware can modify records, add attributes, filter logs, or perform any custom
+ * processing before passing to the underlying handler.
+ *
+ * @example
+ * ```typescript
+ * const addRequestId: HandlerMiddleware = (record, next) => {
+ *   record.attrs.push({ key: 'requestId', value: getCurrentRequestId() });
+ *   next(record);
+ * };
+ *
+ * const filterSensitive: HandlerMiddleware = (record, next) => {
+ *   if (!record.message.includes('password')) {
+ *     next(record);
+ *   }
+ *   // Else drop the log
+ * };
+ *
+ * const handler = new MiddlewareHandler({
+ *   handler: new TextHandler(),
+ *   middleware: [addRequestId, filterSensitive]
+ * });
+ * ```
+ */
 export class MiddlewareHandler implements Handler {
   private handler: Handler;
   private middleware: HandlerMiddleware[];
@@ -168,9 +241,20 @@ export class MiddlewareHandler implements Handler {
   }
 
   /**
-   * Close the wrapped handler if it supports closing.
-   * Handles both sync and async close methods properly.
-   * Delegates to the underlying handler's close method.
+   * Closes the wrapped handler if it supports closing.
+   *
+   * Delegates the close operation to the wrapped handler, properly handling both
+   * synchronous and asynchronous close methods.
+   *
+   * @returns Promise that resolves when the handler is closed
+   *
+   * @example
+   * ```typescript
+   * process.on('SIGTERM', async () => {
+   *   await middlewareHandler.close();
+   *   process.exit(0);
+   * });
+   * ```
    */
   async close(): Promise<void> {
     if ("close" in this.handler && typeof this.handler.close === "function") {

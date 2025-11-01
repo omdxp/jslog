@@ -1,17 +1,33 @@
 import type { LogContext } from "./utils";
 
 /**
- * Log levels matching Go's slog levels
+ * Log levels matching Go's slog levels.
+ *
+ * Levels are ordered by severity, with lower values indicating less severe messages.
+ * The integer values allow for fine-grained control and custom levels between the defaults.
+ *
+ * @example
+ * ```typescript
+ * const logger = new Logger(handler);
+ * logger.log(Level.INFO, "Server started");
+ * logger.log(Level.ERROR, "Connection failed");
+ * ```
  */
 export enum Level {
+  /** Debug-level messages for detailed diagnostic information */
   DEBUG = -4,
+  /** Info-level messages for general informational messages */
   INFO = 0,
+  /** Warn-level messages for warning conditions */
   WARN = 4,
+  /** Error-level messages for error conditions */
   ERROR = 8,
 }
 
 /**
- * Cached level strings for performance
+ * Cached level strings for performance.
+ * Pre-computed string representations of log levels to avoid repeated enum-to-string conversions.
+ * @internal
  */
 const LEVEL_STRINGS = {
   [Level.DEBUG]: "DEBUG",
@@ -20,12 +36,26 @@ const LEVEL_STRINGS = {
   [Level.ERROR]: "ERROR",
 } as const;
 
+/**
+ * Converts a log level to its string representation.
+ *
+ * @param level - The log level to convert
+ * @returns The string representation of the level (e.g., "INFO", "ERROR")
+ *
+ * @example
+ * ```typescript
+ * getLevelString(Level.INFO); // Returns "INFO"
+ * ```
+ */
 export function getLevelString(level: Level): string {
   return LEVEL_STRINGS[level] || Level[level];
 }
 
 /**
- * Value types for attributes
+ * Value types that can be used in log attributes.
+ *
+ * Supports primitive types, complex objects, arrays, and custom types implementing LogValuer.
+ * This type definition ensures type safety when logging various data structures.
  */
 export type Value =
   | string
@@ -41,39 +71,171 @@ export type Value =
   | LogValuer;
 
 /**
- * LogValuer interface allows custom types to define how they should be logged
+ * LogValuer interface allows custom types to define how they should be logged.
+ *
+ * Implement this interface on custom classes to control their log representation.
+ *
+ * @example
+ * ```typescript
+ * class User implements LogValuer {
+ *   constructor(private id: string, private email: string) {}
+ *
+ *   logValue(): Value {
+ *     return { id: this.id, email: this.email };
+ *   }
+ * }
+ *
+ * logger.info("User logged in", Any("user", new User("123", "user@example.com")));
+ * ```
  */
 export interface LogValuer {
   logValue(): Value;
 }
 
 /**
- * Represents a key-value attribute in a log record
+ * Represents a key-value attribute in a log record.
+ *
+ * Attributes provide structured context to log messages.
+ * Use the helper functions (String, Int, Bool, etc.) for convenient attribute creation.
  */
 export interface Attr {
+  /** The attribute key/name */
   key: string;
+  /** The attribute value */
   value: Value;
 }
 
 /**
- * Convenience functions for common attribute types
- * Inlined for performance - avoid function call overhead
+ * Creates a string attribute.
+ *
+ * @param key - The attribute key
+ * @param value - The string value
+ * @returns An Attr object
+ *
+ * @example
+ * ```typescript
+ * logger.info("User action", String("username", "john"));
+ * ```
  */
 export const String = (key: string, value: string): Attr => ({ key, value });
+
+/**
+ * Creates an integer attribute.
+ *
+ * @param key - The attribute key
+ * @param value - The integer value
+ * @returns An Attr object
+ */
 export const Int = (key: string, value: number): Attr => ({ key, value });
+
+/**
+ * Creates a 64-bit integer attribute.
+ *
+ * @param key - The attribute key
+ * @param value - The 64-bit integer value
+ * @returns An Attr object
+ */
 export const Int64 = (key: string, value: number): Attr => ({ key, value });
+
+/**
+ * Creates an unsigned 64-bit integer attribute.
+ *
+ * @param key - The attribute key
+ * @param value - The unsigned 64-bit integer value
+ * @returns An Attr object
+ */
 export const Uint64 = (key: string, value: number): Attr => ({ key, value });
+
+/**
+ * Creates a 64-bit floating-point attribute.
+ *
+ * @param key - The attribute key
+ * @param value - The floating-point value
+ * @returns An Attr object
+ */
 export const Float64 = (key: string, value: number): Attr => ({ key, value });
+
+/**
+ * Creates a boolean attribute.
+ *
+ * @param key - The attribute key
+ * @param value - The boolean value
+ * @returns An Attr object
+ *
+ * @example
+ * ```typescript
+ * logger.info("Operation complete", Bool("success", true));
+ * ```
+ */
 export const Bool = (key: string, value: boolean): Attr => ({ key, value });
+
+/**
+ * Creates a time/date attribute.
+ *
+ * @param key - The attribute key
+ * @param value - The Date value
+ * @returns An Attr object
+ *
+ * @example
+ * ```typescript
+ * logger.info("Event occurred", Time("timestamp", new Date()));
+ * ```
+ */
 export const Time = (key: string, value: Date): Attr => ({ key, value });
+
+/**
+ * Creates a duration attribute in milliseconds.
+ *
+ * @param key - The attribute key
+ * @param ms - The duration in milliseconds
+ * @returns An Attr object with formatted duration string
+ *
+ * @example
+ * ```typescript
+ * const start = Date.now();
+ * // ... operation ...
+ * logger.info("Operation complete", Duration("elapsed", Date.now() - start));
+ * ```
+ */
 export const Duration = (key: string, ms: number): Attr => ({
   key,
   value: `${ms}ms`,
 });
+
+/**
+ * Creates an attribute with any value type.
+ *
+ * @param key - The attribute key
+ * @param value - The value of any type
+ * @returns An Attr object
+ *
+ * @example
+ * ```typescript
+ * logger.info("Data received", Any("payload", { id: 1, name: "test" }));
+ * ```
+ */
 export const Any = (key: string, value: any): Attr => ({ key, value });
 
 /**
- * Group creates a named group of attributes
+ * Creates a named group of attributes.
+ *
+ * Groups allow organizing related attributes under a common namespace.
+ *
+ * @param key - The group name
+ * @param attrs - The attributes to include in the group
+ * @returns An Attr object containing the grouped attributes
+ *
+ * @example
+ * ```typescript
+ * logger.info("Request completed",
+ *   Group("http",
+ *     String("method", "GET"),
+ *     Int("status", 200),
+ *     String("path", "/api/users")
+ *   )
+ * );
+ * // Outputs: http.method=GET http.status=200 http.path=/api/users
+ * ```
  */
 export const Group = (key: string, ...attrs: Attr[]): Attr => {
   const obj: { [key: string]: Value } = {};
@@ -84,7 +246,22 @@ export const Group = (key: string, ...attrs: Attr[]): Attr => {
 };
 
 /**
- * Error attribute helpers
+ * Creates an error attribute with structured error information.
+ *
+ * Automatically extracts message, name, and stack trace from Error objects.
+ * Can also accept plain strings for simple error messages.
+ *
+ * @param err - An Error object or error message string
+ * @returns An Attr object containing structured error information
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   // ... code that might throw ...
+ * } catch (error) {
+ *   logger.error("Operation failed", Err(error));
+ * }
+ * ```
  */
 export const Err = (err: Error | string): Attr => {
   if (typeof err === "string") {
@@ -99,28 +276,49 @@ export const Err = (err: Error | string): Attr => {
 };
 
 /**
- * Record represents a single log entry
+ * Represents a single log entry with all associated metadata.
+ *
+ * Records are created internally by the Logger and passed to handlers for processing.
  */
 export interface Record {
+  /** The timestamp when the log was created */
   time: Date;
+  /** The log message */
   message: string;
+  /** The severity level of the log */
   level: Level;
+  /** Additional structured attributes */
   attrs: Attr[];
-  pc?: number; // Program counter (source location) - for compatibility
-  source?: Source; // Actual source location info
+  /** Program counter (source location) - for Go slog compatibility */
+  pc?: number;
+  /** Source location information (file, line, function) */
+  source?: Source;
 }
 
 /**
- * Source location information
+ * Source location information captured from the call stack.
+ *
+ * Provides context about where a log statement originated in the code.
  */
 export interface Source {
+  /** The function name where the log was called */
   function?: string;
+  /** The file path where the log was called */
   file?: string;
+  /** The line number where the log was called */
   line?: number;
 }
 
 /**
- * Get source location from stack trace
+ * Captures source location information from the current call stack.
+ *
+ * Parses the JavaScript stack trace to extract file, line, and function information.
+ * This is an expensive operation and should only be called when needed.
+ *
+ * @param skipFrames - Number of stack frames to skip (default: 0)
+ * @returns Source information or undefined if parsing fails
+ *
+ * @internal
  */
 export function getSource(skipFrames: number = 0): Source | undefined {
   try {
@@ -160,63 +358,194 @@ export function getSource(skipFrames: number = 0): Source | undefined {
 }
 
 /**
- * Handler interface - processes log records
- * Similar to Go's slog.Handler
+ * Handler interface for processing log records.
+ *
+ * Handlers determine how log records are formatted and where they are output.
+ * This interface mirrors Go's slog.Handler design.
+ *
+ * @example
+ * ```typescript
+ * class CustomHandler implements Handler {
+ *   enabled(level: Level): boolean {
+ *     return level >= Level.INFO;
+ *   }
+ *
+ *   handle(record: Record): void {
+ *     console.log(JSON.stringify(record));
+ *   }
+ *
+ *   withAttrs(attrs: Attr[]): Handler {
+ *     return this; // Return new handler with attrs
+ *   }
+ *
+ *   withGroup(name: string): Handler {
+ *     return this; // Return new handler with group
+ *   }
+ * }
+ * ```
  */
 export interface Handler {
+  /**
+   * Reports whether the handler handles records at the given level.
+   *
+   * @param level - The log level to check
+   * @returns true if the handler will process logs at this level
+   */
   enabled(level: Level): boolean;
+
+  /**
+   * Processes a log record.
+   *
+   * @param record - The log record to process
+   */
   handle(record: Record): void;
+
+  /**
+   * Returns a new handler with additional attributes.
+   *
+   * @param attrs - Attributes to add to the handler
+   * @returns A new handler instance with the added attributes
+   */
   withAttrs(attrs: Attr[]): Handler;
+
+  /**
+   * Returns a new handler with a named group.
+   *
+   * @param name - The group name
+   * @returns A new handler instance with the group
+   */
   withGroup(name: string): Handler;
-  needsSource?(): boolean; // Optional: return true if handler needs source info
+
+  /**
+   * Reports whether the handler needs source location information.
+   *
+   * Optional method. Return true if the handler requires source information
+   * (file, line, function) to be captured. This is an expensive operation,
+   * so handlers should only request it when necessary.
+   *
+   * @returns true if source information should be captured
+   */
+  needsSource?(): boolean;
 }
 
 /**
- * LevelVar is a Level variable that allows dynamic level changes
+ * A variable log level that can be changed at runtime.
+ *
+ * Allows dynamic adjustment of logging verbosity without restarting the application.
+ *
+ * @example
+ * ```typescript
+ * const levelVar = new LevelVar(Level.INFO);
+ * const handler = new TextHandler({ level: levelVar });
+ *
+ * // Later, enable debug logging
+ * levelVar.set(Level.DEBUG);
+ * ```
  */
 export class LevelVar {
   private _level: Level;
 
+  /**
+   * Creates a new LevelVar with the specified initial level.
+   *
+   * @param level - The initial log level (default: INFO)
+   */
   constructor(level: Level = Level.INFO) {
     this._level = level;
   }
 
+  /**
+   * Returns the current log level.
+   *
+   * @returns The current level
+   */
   level(): Level {
     return this._level;
   }
 
+  /**
+   * Sets a new log level.
+   *
+   * @param level - The new log level to set
+   */
   set(level: Level): void {
     this._level = level;
   }
 
+  /**
+   * Returns the string representation of the current level.
+   *
+   * @returns The level name (e.g., "INFO", "DEBUG")
+   */
   string(): string {
     return Level[this._level];
   }
 }
 
 /**
- * Logger - main logging interface
- * Similar to Go's slog.Logger
+ * The main logging interface.
+ *
+ * Logger provides a structured logging API similar to Go's slog.Logger.
+ * It delegates actual log processing to a Handler implementation.
+ *
+ * @example
+ * ```typescript
+ * const logger = new Logger(new TextHandler({ level: Level.INFO }));
+ *
+ * logger.info("Server started", Int("port", 3000));
+ * logger.error("Failed to connect", String("host", "localhost"), Err(error));
+ *
+ * // Create logger with persistent attributes
+ * const requestLogger = logger.with(String("requestId", "abc-123"));
+ * requestLogger.info("Processing request");
+ * ```
  */
 export class Logger {
+  /**
+   * Creates a new Logger with the specified handler.
+   *
+   * @param handler - The handler that will process log records
+   */
   constructor(private handler: Handler) {}
 
   /**
-   * Get the handler
+   * Returns the handler used by this logger.
+   *
+   * @returns The current handler
    */
   getHandler(): Handler {
     return this.handler;
   }
 
   /**
-   * Log at a specific level
+   * Logs a message at the specified level with attributes.
+   *
+   * This is the primary logging method. Use convenience methods (info, error, etc.)
+   * for cleaner code in most cases.
+   *
+   * @param level - The log level
+   * @param msg - The log message
+   * @param attrs - Additional attributes to include
+   *
+   * @example
+   * ```typescript
+   * logger.log(Level.INFO, "Operation complete", Duration("elapsed", 150));
+   * ```
    */
   log(level: Level, msg: string, ...attrs: Attr[]): void {
     this.logAttrs(level, msg, ...attrs);
   }
 
   /**
-   * LogAttrs is a more efficient variant of log that accepts pre-constructed attributes
+   * Logs a message with pre-constructed attributes.
+   *
+   * More efficient variant of log() when attributes are already constructed.
+   *
+   * @param level - The log level
+   * @param msg - The log message
+   * @param attrs - Pre-constructed attributes
+   *
+   * @internal
    */
   logAttrs(level: Level, msg: string, ...attrs: Attr[]): void {
     if (!this.handler.enabled(level)) {
@@ -241,63 +570,131 @@ export class Logger {
   }
 
   /**
-   * Log at DEBUG level
+   * Logs a message at DEBUG level.
+   *
+   * Debug messages provide detailed diagnostic information useful during development.
+   *
+   * @param msg - The log message
+   * @param attrs - Additional attributes
+   *
+   * @example
+   * ```typescript
+   * logger.debug("Cache miss", String("key", "user:123"));
+   * ```
    */
   debug(msg: string, ...attrs: Attr[]): void {
     this.log(Level.DEBUG, msg, ...attrs);
   }
 
   /**
-   * DebugContext logs at DEBUG level with context support
+   * Logs a message at DEBUG level with context support.
+   *
+   * @param msg - The log message
+   * @param ctx - The log context containing additional attributes
+   * @param attrs - Additional attributes
    */
   debugContext(msg: string, ctx: LogContext, ...attrs: Attr[]): void {
     this.debug(msg, ...ctx.toAttrs(), ...attrs);
   }
 
   /**
-   * Log at INFO level
+   * Logs a message at INFO level.
+   *
+   * Info messages describe normal application behavior and milestones.
+   *
+   * @param msg - The log message
+   * @param attrs - Additional attributes
+   *
+   * @example
+   * ```typescript
+   * logger.info("Server started", Int("port", 3000), String("env", "production"));
+   * ```
    */
   info(msg: string, ...attrs: Attr[]): void {
     this.log(Level.INFO, msg, ...attrs);
   }
 
   /**
-   * InfoContext logs at INFO level with context support
+   * Logs a message at INFO level with context support.
+   *
+   * @param msg - The log message
+   * @param ctx - The log context containing additional attributes
+   * @param attrs - Additional attributes
    */
   infoContext(msg: string, ctx: LogContext, ...attrs: Attr[]): void {
     this.info(msg, ...ctx.toAttrs(), ...attrs);
   }
 
   /**
-   * Log at WARN level
+   * Logs a message at WARN level.
+   *
+   * Warning messages indicate potentially harmful situations.
+   *
+   * @param msg - The log message
+   * @param attrs - Additional attributes
+   *
+   * @example
+   * ```typescript
+   * logger.warn("High memory usage", Float64("usage", 0.85));
+   * ```
    */
   warn(msg: string, ...attrs: Attr[]): void {
     this.log(Level.WARN, msg, ...attrs);
   }
 
   /**
-   * WarnContext logs at WARN level with context support
+   * Logs a message at WARN level with context support.
+   *
+   * @param msg - The log message
+   * @param ctx - The log context containing additional attributes
+   * @param attrs - Additional attributes
    */
   warnContext(msg: string, ctx: LogContext, ...attrs: Attr[]): void {
     this.warn(msg, ...ctx.toAttrs(), ...attrs);
   }
 
   /**
-   * Log at ERROR level
+   * Logs a message at ERROR level.
+   *
+   * Error messages indicate failure conditions that need attention.
+   *
+   * @param msg - The log message
+   * @param attrs - Additional attributes
+   *
+   * @example
+   * ```typescript
+   * logger.error("Database connection failed", Err(error), String("host", "db.example.com"));
+   * ```
    */
   error(msg: string, ...attrs: Attr[]): void {
     this.log(Level.ERROR, msg, ...attrs);
   }
 
   /**
-   * ErrorContext logs at ERROR level with context support
+   * Logs a message at ERROR level with context support.
+   *
+   * @param msg - The log message
+   * @param ctx - The log context containing additional attributes
+   * @param attrs - Additional attributes
    */
   errorContext(msg: string, ctx: LogContext, ...attrs: Attr[]): void {
     this.error(msg, ...ctx.toAttrs(), ...attrs);
   }
 
   /**
-   * With returns a logger with additional attributes
+   * Returns a new logger with additional persistent attributes.
+   *
+   * The returned logger includes the specified attributes in every log message.
+   *
+   * @param attrs - Attributes to add to all subsequent logs
+   * @returns A new Logger instance with the added attributes
+   *
+   * @example
+   * ```typescript
+   * const requestLogger = logger.with(String("requestId", "abc-123"));
+   * requestLogger.info("Processing"); // Includes requestId attribute
+   * requestLogger.error("Failed");    // Also includes requestId attribute
+   * ```
    */
   with(...attrs: Attr[]): Logger {
     if (attrs.length === 0) {
@@ -307,7 +704,19 @@ export class Logger {
   }
 
   /**
-   * WithGroup returns a logger that starts a new group
+   * Returns a new logger that groups subsequent attributes under a name.
+   *
+   * Groups allow organizing related attributes hierarchically.
+   *
+   * @param name - The group name
+   * @returns A new Logger instance with the group
+   *
+   * @example
+   * ```typescript
+   * const dbLogger = logger.withGroup("database");
+   * dbLogger.info("Query executed", Int("duration", 150));
+   * // Outputs: database.duration=150
+   * ```
    */
   withGroup(name: string): Logger {
     if (name === "") {
@@ -317,7 +726,20 @@ export class Logger {
   }
 
   /**
-   * Enabled reports whether the logger is enabled for the given level
+   * Reports whether the logger is enabled for the given level.
+   *
+   * Can be used to avoid expensive computations when logging is disabled.
+   *
+   * @param level - The log level to check
+   * @returns true if the logger will process logs at this level
+   *
+   * @example
+   * ```typescript
+   * if (logger.enabled(Level.DEBUG)) {
+   *   const debugData = expensiveDebugDataGeneration();
+   *   logger.debug("Debug info", Any("data", debugData));
+   * }
+   * ```
    */
   enabled(level: Level): boolean {
     return this.handler.enabled(level);

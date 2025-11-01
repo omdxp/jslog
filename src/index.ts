@@ -1,8 +1,39 @@
 /**
- * @omdxp/jslog
+ * @omdxp/jslog - Structured logging for Node.js
  *
- * Structured logging for Node.js inspired by Go's log/slog.
- * Now with features that make Go slog look basic!
+ * A high-performance structured logging library inspired by Go's log/slog,
+ * with additional features specifically designed for Node.js applications.
+ *
+ * @packageDocumentation
+ *
+ * @example Basic usage
+ * ```typescript
+ * import { Logger, TextHandler, Level, Int, String } from '@omdxp/jslog';
+ *
+ * const logger = new Logger(new TextHandler({ level: Level.INFO }));
+ * logger.info("Server started", Int("port", 3000), String("env", "production"));
+ * ```
+ *
+ * @example With file rotation
+ * ```typescript
+ * import { Logger, FileHandler } from '@omdxp/jslog';
+ *
+ * const logger = new Logger(new FileHandler({
+ *   filepath: './logs/app.log',
+ *   maxSize: 10 * 1024 * 1024,  // 10MB
+ *   maxFiles: 5
+ * }));
+ * ```
+ *
+ * @example Async non-blocking logging
+ * ```typescript
+ * import { Logger, AsyncHandler, JSONHandler } from '@omdxp/jslog';
+ *
+ * const logger = new Logger(new AsyncHandler({
+ *   handler: new JSONHandler()
+ * }));
+ * logger.info("This never blocks");
+ * ```
  */
 
 import type { LogContext } from "./utils";
