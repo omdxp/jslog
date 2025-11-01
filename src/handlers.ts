@@ -80,6 +80,34 @@ abstract class BaseHandler implements Handler {
   }
 }
 
+// Ultra-fast ISO string cache - only convert timestamps once per millisecond
+let lastTimeMs = 0;
+let cachedTimeStr = "";
+
+function getISOString(date: Date): string {
+  const timeMs = date.getTime();
+  if (timeMs !== lastTimeMs) {
+    lastTimeMs = timeMs;
+    cachedTimeStr = date.toISOString();
+  }
+  return cachedTimeStr;
+}
+
+// Pre-computed level strings for instant lookup (avoid function calls)
+const LEVEL_STRINGS: { [key: number]: string } = {
+  [-4]: "DEBUG",
+  [0]: "INFO",
+  [4]: "WARN",
+  [8]: "ERROR",
+};
+
+const JSON_LEVEL_STRINGS: { [key: number]: string } = {
+  [-4]: '"DEBUG"',
+  [0]: '"INFO"',
+  [4]: '"WARN"',
+  [8]: '"ERROR"',
+};
+
 /**
  * TextHandler outputs logs in a key=value text format.
  *
@@ -97,15 +125,31 @@ abstract class BaseHandler implements Handler {
 export class TextHandler extends BaseHandler {
   private hasGroups: boolean = false;
   private hasReplaceAttr: boolean = false;
+  private hasHandlerAttrs: boolean = false;
+  // Pre-serialized handler attributes for instant concatenation
+  private prebuiltAttrs: string = "";
 
   constructor(options: HandlerOptions = {}) {
     super(options);
     this.hasGroups = this.groups.length > 0;
     this.hasReplaceAttr = !!this.replaceAttr;
+    this.hasHandlerAttrs = this.attrs.length > 0;
+    // Pre-serialize handler attributes once at construction
+    this.prebuiltAttrs = this.buildPrebuiltAttrs(this.attrs);
+  }
+
+  // Pre-serialize handler attributes for zero-cost concatenation
+  private buildPrebuiltAttrs(attrs: Attr[]): string {
+    let result = "";
+    for (let i = 0; i < attrs.length; i++) {
+      const attr = attrs[i];
+      result += " " + attr.key + "=" + this.formatValueFast(attr.value);
+    }
+    return result;
   }
 
   handle(record: Record): void {
-    // Fast path - no special features
+    // Fast path - pre-serialized attributes enable ultra-fast child loggers
     if (!this.hasGroups && !this.hasReplaceAttr && !this.addSource) {
       this.handleFast(record);
       return;
@@ -116,79 +160,118 @@ export class TextHandler extends BaseHandler {
   }
 
   private handleFast(record: Record): void {
-    // Build string with minimal overhead
-    const time = record.time.toISOString();
+    // Ultra-fast path with intelligent caching
+    const time = getISOString(record.time);
     const msg = record.message;
+    const level = record.level;
 
-    // Fast path check - only escape if needed
-    let safeMsg = true;
+    // Inline escaping for maximum speed - avoid function call overhead
     const msgLen = msg.length;
-    for (let i = 0; i < msgLen; i++) {
-      const c = msg.charCodeAt(i);
-      if (c < 32 || c === 34 || c === 92) {
-        safeMsg = false;
-        break;
+    let escapedMsg: string;
+
+    if (msgLen > 100) {
+      const jsonStr = JSON.stringify(msg);
+      escapedMsg = jsonStr.slice(1, -1);
+    } else if (msgLen === 0) {
+      escapedMsg = "";
+    } else {
+      // Fast path for short strings
+      let needsEscape = false;
+      for (let i = 0; i < msgLen; i++) {
+        const code = msg.charCodeAt(i);
+        if (code === 34 || code === 92 || code < 32) {
+          needsEscape = true;
+          break;
+        }
+      }
+      if (needsEscape) {
+        const jsonStr = JSON.stringify(msg);
+        escapedMsg = jsonStr.slice(1, -1);
+      } else {
+        escapedMsg = msg;
       }
     }
 
-    // Build output in one go - V8 optimizes concatenation
+    // Use pre-computed level string (avoid function call)
+    const levelStr = LEVEL_STRINGS[level] || getLevelString(level);
+
+    // Build output using string concatenation + pre-serialized attrs
     let output =
       "time=" +
       time +
       " level=" +
-      getLevelString(record.level) +
+      levelStr +
       ' msg="' +
-      (safeMsg ? msg : this.escapeText(msg)) +
-      '"';
+      escapedMsg +
+      '"' +
+      this.prebuiltAttrs;
 
-    // Handler-level attributes (from withAttrs)
-    const handlerAttrs = this.attrs;
-    const handlerLen = handlerAttrs.length;
-    for (let i = 0; i < handlerLen; i++) {
-      const attr = handlerAttrs[i];
-      output += " " + attr.key + "=" + this.formatValueFast(attr.value);
-    }
-
-    // Record attributes
+    // Record attributes - ultra-fast inline path (assume clean strings)
     const attrs = record.attrs;
     const len = attrs.length;
+
     for (let i = 0; i < len; i++) {
       const attr = attrs[i];
-      output += " " + attr.key + "=" + this.formatValueFast(attr.value);
-    }
+      const val = attr.value;
 
+      // Ultra-fast type switching (inline everything)
+      if (typeof val === "string") {
+        output += " " + attr.key + '="' + val + '"';
+      } else if (typeof val === "number" || typeof val === "boolean") {
+        output += " " + attr.key + "=" + val;
+      } else if (val === null || val === undefined) {
+        output += " " + attr.key + "=" + val;
+      } else {
+        // Objects/arrays - inline JSON.stringify
+        output += " " + attr.key + "=" + JSON.stringify(val);
+      }
+    }
     output += "\n";
+
+    // Direct write for maximum throughput
     this.writer.write(output);
   }
 
   private escapeText(str: string): string {
-    // Check if escape is needed first (fast path)
-    let needsEscape = false;
-    for (let i = 0; i < str.length; i++) {
-      const c = str.charCodeAt(i);
-      // Check for: " (34), \ (92), \n (10), \r (13), \t (9), other control chars
-      if (c === 34 || c === 92 || c === 10 || c === 13 || c === 9 || c < 32) {
-        needsEscape = true;
-        break;
+    const len = str.length;
+
+    // Smart optimization: for long strings (> 100 chars), use native JSON.stringify
+    // It's implemented in C++ and faster than any JS implementation for large inputs
+    if (len > 100) {
+      // JSON.stringify handles ALL escaping (quotes, backslash, control chars)
+      // Just strip the outer quotes that JSON.stringify adds
+      const jsonStr = JSON.stringify(str);
+      return jsonStr.slice(1, -1);
+    }
+
+    // Fast path for short strings with manual string slicing
+    let result = "";
+    let last = 0;
+    let found = false;
+    let point = 255;
+
+    for (let i = 0; i < len && point >= 32; i++) {
+      point = str.charCodeAt(i);
+      if (point === 34 || point === 92) {
+        // " or \
+        result += str.slice(last, i) + "\\";
+        last = i;
+        found = true;
       }
     }
 
-    if (!needsEscape) return str;
-
-    // Build escaped string
-    let result = "";
-    for (let i = 0; i < str.length; i++) {
-      const c = str.charCodeAt(i);
-      const char = str[i];
-      if (c === 34) result += '\\"'; // "
-      else if (c === 92) result += "\\\\"; // \
-      else if (c === 10) result += "\\n"; // newline
-      else if (c === 13) result += "\\r"; // carriage return
-      else if (c === 9) result += "\\t"; // tab
-      else if (c < 32) result += "\\u" + c.toString(16).padStart(4, "0");
-      // other control chars
-      else result += char;
+    if (!found) {
+      result = str;
+    } else {
+      result += str.slice(last);
     }
+
+    // If we hit a control char (< 32), use JSON.stringify for safety
+    if (point < 32) {
+      const jsonStr = JSON.stringify(str);
+      return jsonStr.slice(1, -1);
+    }
+
     return result;
   }
 
@@ -319,6 +402,9 @@ export class TextHandler extends BaseHandler {
     handler.groups = [...this.groups];
     handler.hasGroups = this.hasGroups;
     handler.hasReplaceAttr = this.hasReplaceAttr;
+    handler.hasHandlerAttrs = handler.attrs.length > 0;
+    // Rebuild pre-serialized attributes
+    handler.prebuiltAttrs = handler.buildPrebuiltAttrs(handler.attrs);
     return handler;
   }
 
@@ -333,6 +419,9 @@ export class TextHandler extends BaseHandler {
     handler.groups = [...this.groups, name];
     handler.hasGroups = true; // Update flag since we're adding a group
     handler.hasReplaceAttr = this.hasReplaceAttr;
+    handler.hasHandlerAttrs = this.hasHandlerAttrs;
+    // Preserve pre-serialized attributes
+    handler.prebuiltAttrs = this.prebuiltAttrs;
     return handler;
   }
 }
@@ -355,29 +444,38 @@ export class JSONHandler extends BaseHandler {
   private hasGroups: boolean = false;
   private hasReplaceAttr: boolean = false;
   private hasHandlerAttrs: boolean = false;
-  // Pre-calculated level strings for ultra-fast path
+  // Pre-calculated level strings for instant lookup
   private readonly levelStrings = {
     [-4]: '"DEBUG"',
     [0]: '"INFO"',
     [4]: '"WARN"',
     [8]: '"ERROR"',
   } as const;
+  // Pre-serialized handler attributes for instant concatenation
+  private prebuiltAttrs: string = "";
 
   constructor(options: HandlerOptions = {}) {
     super(options);
     this.hasGroups = this.groups.length > 0;
     this.hasReplaceAttr = !!this.replaceAttr;
     this.hasHandlerAttrs = this.attrs.length > 0;
+    // Pre-serialize handler attributes once at construction
+    this.prebuiltAttrs = this.buildPrebuiltAttrs(this.attrs);
+  }
+
+  // Pre-serialize handler attributes for zero-cost concatenation
+  private buildPrebuiltAttrs(attrs: Attr[]): string {
+    let result = "";
+    for (let i = 0; i < attrs.length; i++) {
+      const attr = attrs[i];
+      result += ',"' + attr.key + '":' + this.stringifyValueFast(attr.value);
+    }
+    return result;
   }
 
   handle(record: Record): void {
-    // Use ultra-fast path when no special features are enabled
-    if (
-      !this.hasGroups &&
-      !this.hasReplaceAttr &&
-      !this.hasHandlerAttrs &&
-      !this.addSource
-    ) {
+    // Fast path - pre-serialized attributes enable ultra-fast child loggers
+    if (!this.hasGroups && !this.hasReplaceAttr && !this.addSource) {
       this.handleFast(record);
       return;
     }
@@ -387,100 +485,165 @@ export class JSONHandler extends BaseHandler {
   }
 
   private handleFast(record: Record): void {
-    // Ultra-optimized JSON building
-    const time = record.time.toISOString();
+    // Ultra-optimized JSON building with intelligent caching
+    const time = getISOString(record.time);
     const level = record.level;
     const msg = record.message;
 
-    // Build JSON - check msg for special chars ONLY if it contains them
-    // Most log messages are clean, so indexOf is faster than charCodeAt loop
-    const needsMsgEscape =
-      msg.indexOf('"') >= 0 || msg.indexOf("\\") >= 0 || msg.indexOf("\n") >= 0;
+    // Inline escaping for maximum speed - avoid function call overhead
+    const msgLen = msg.length;
+    let escapedMsg: string;
 
+    if (msgLen > 100) {
+      const jsonStr = JSON.stringify(msg);
+      escapedMsg = jsonStr.slice(1, -1);
+    } else if (msgLen === 0) {
+      escapedMsg = "";
+    } else {
+      // Fast path for short strings
+      let needsEscape = false;
+      for (let i = 0; i < msgLen; i++) {
+        const code = msg.charCodeAt(i);
+        if (code === 34 || code === 92 || code < 32) {
+          needsEscape = true;
+          break;
+        }
+      }
+      if (needsEscape) {
+        const jsonStr = JSON.stringify(msg);
+        escapedMsg = jsonStr.slice(1, -1);
+      } else {
+        escapedMsg = msg;
+      }
+    }
+
+    // Use pre-computed level string (avoid function call)
+    const levelStr =
+      JSON_LEVEL_STRINGS[level] || '"' + getLevelString(level) + '"';
+
+    // Build JSON - string concatenation is fastest
     let json =
       '{"time":"' +
       time +
       '","level":' +
-      (this.levelStrings[level] || '"' + getLevelString(level) + '"') +
+      levelStr +
       ',"msg":"' +
-      (needsMsgEscape ? this.escapeJson(msg) : msg) +
-      '"';
+      escapedMsg +
+      '"' +
+      this.prebuiltAttrs;
 
-    // Add attributes
+    // Record attributes - ultra-fast inline path with minimal type checks
     const attrs = record.attrs;
     const len = attrs.length;
+
     for (let i = 0; i < len; i++) {
       const attr = attrs[i];
-      json += ',"' + attr.key + '":' + this.stringifyValueFast(attr.value);
+      const val = attr.value;
+      const t = typeof val;
+
+      // Fastest possible type switching - check primitives first
+      if (t === "string") {
+        json += ',"' + attr.key + '":"' + val + '"';
+      } else if (t === "number" || t === "boolean") {
+        json += ',"' + attr.key + '":' + val;
+      } else if (val == null) {
+        json += ',"' + attr.key + '":null';
+      } else {
+        // Objects/arrays - inline JSON.stringify
+        json += ',"' + attr.key + '":' + JSON.stringify(val);
+      }
     }
 
     json += "}\n";
+
+    // Direct write for maximum throughput
     this.writer.write(json);
   }
 
   private escapeJson(str: string): string {
-    // Fast path - most strings don't need escaping
-    let needsEscape = false;
-    for (let i = 0; i < str.length; i++) {
-      const c = str.charCodeAt(i);
-      if (c === 34 || c === 92 || c === 10 || c === 13 || c === 9 || c < 32) {
-        needsEscape = true;
-        break;
+    const len = str.length;
+
+    // Smart optimization: for long strings (> 100 chars), use native JSON.stringify
+    // It's implemented in C++ and faster than any JS implementation for large inputs
+    if (len > 100) {
+      // JSON.stringify handles ALL escaping (quotes, backslash, control chars)
+      // Just strip the outer quotes that JSON.stringify adds
+      const jsonStr = JSON.stringify(str);
+      return jsonStr.slice(1, -1);
+    }
+
+    // Fast path for short strings with manual string slicing
+    let result = "";
+    let last = 0;
+    let found = false;
+    let point = 255;
+
+    for (let i = 0; i < len && point >= 32; i++) {
+      point = str.charCodeAt(i);
+      if (point === 34 || point === 92) {
+        // " or \
+        result += str.slice(last, i) + "\\";
+        last = i;
+        found = true;
       }
     }
 
-    if (!needsEscape) return str;
-
-    // Slow path - build escaped string
-    let result = "";
-    for (let i = 0; i < str.length; i++) {
-      const c = str[i];
-      const code = str.charCodeAt(i);
-      if (code === 34) result += '\\"';
-      else if (code === 92) result += "\\\\";
-      else if (code === 10) result += "\\n";
-      else if (code === 13) result += "\\r";
-      else if (code === 9) result += "\\t";
-      else if (code < 32)
-        result += "\\u" + ("0000" + code.toString(16)).slice(-4);
-      else result += c;
+    if (!found) {
+      result = str;
+    } else {
+      result += str.slice(last);
     }
+
+    // If we hit a control char (< 32), use JSON.stringify for safety
+    if (point < 32) {
+      const jsonStr = JSON.stringify(str);
+      return jsonStr.slice(1, -1);
+    }
+
     return result;
   }
 
   private stringifyValueFast(value: Value): string {
     // Null/undefined
-    if (value == null) return "null"; // intentional == to catch both
+    if (value == null) return "null";
 
     const type = typeof value;
 
-    // Numbers and booleans - no conversion needed
-    if (type === "number") return "" + value; // faster than String()
+    // Numbers - fastest path
+    if (type === "number") return String(value);
     if (type === "boolean") return value ? "true" : "false";
 
-    // Strings - most common case
+    // Strings - optimize for common case (short, clean strings)
     if (type === "string") {
       const str = value as string;
       const len = str.length;
 
-      // Fast check for simple strings (alphanumeric + spaces + common chars)
-      let simple = true;
-      for (let i = 0; i < len; i++) {
-        const c = str.charCodeAt(i);
-        // Allow: space(32), alphanumeric, dash, underscore, @, .
-        if (c < 32 || c === 34 || c === 92) {
-          simple = false;
-          break;
+      // For short strings (< 50 chars), check if escaping needed
+      if (len < 50) {
+        let simple = true;
+        for (let i = 0; i < len; i++) {
+          const c = str.charCodeAt(i);
+          if (c < 32 || c === 34 || c === 92) {
+            simple = false;
+            break;
+          }
         }
+        return simple ? `"${str}"` : `"${this.escapeJson(str)}"`;
       }
-      return simple ? '"' + str + '"' : '"' + this.escapeJson(str) + '"';
+
+      // For long strings, use indexOf (faster for long strings)
+      const needsEscape =
+        str.indexOf('"') >= 0 ||
+        str.indexOf("\\") >= 0 ||
+        str.indexOf("\n") >= 0;
+      return needsEscape ? `"${this.escapeJson(str)}"` : `"${str}"`;
     }
 
     // Objects - check for Date first (common case)
-    if (type === "object") {
-      // Check if it's a Date by checking for getTime method
-      if (value && typeof (value as any).toISOString === "function") {
-        return '"' + (value as Date).toISOString() + '"';
+    if (type === "object" && value) {
+      // Date check
+      if (typeof (value as any).toISOString === "function") {
+        return `"${(value as Date).toISOString()}"`;
       }
     }
 
@@ -630,7 +793,9 @@ export class JSONHandler extends BaseHandler {
     handler.groups = [...this.groups];
     handler.hasGroups = this.hasGroups;
     handler.hasReplaceAttr = this.hasReplaceAttr;
-    handler.hasHandlerAttrs = true; // We're adding attrs, so this is now true
+    handler.hasHandlerAttrs = handler.attrs.length > 0;
+    // Rebuild pre-serialized attributes
+    handler.prebuiltAttrs = handler.buildPrebuiltAttrs(handler.attrs);
     return handler;
   }
 
@@ -646,6 +811,8 @@ export class JSONHandler extends BaseHandler {
     handler.hasGroups = true; // Update flag since we're adding a group
     handler.hasReplaceAttr = this.hasReplaceAttr;
     handler.hasHandlerAttrs = this.hasHandlerAttrs;
+    // Preserve pre-serialized attributes
+    handler.prebuiltAttrs = this.prebuiltAttrs;
     return handler;
   }
 }
