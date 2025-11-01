@@ -218,6 +218,99 @@ const generateThroughputComparison = (results) => {
   return comparison;
 };
 
+// Parse Pino-style benchmark results (fastbench format)
+const parsePinoResults = (output) => {
+  const results = [];
+  const lines = output.split("\n");
+
+  for (const line of lines) {
+    // Match pattern like "benchJslogJSON*10000: 181.474ms"
+    const match = line.match(/^bench(\w+)\*\d+:\s+([\d.]+)ms/);
+    if (match) {
+      const [, name, timeStr] = match;
+      const time = parseFloat(timeStr);
+
+      // Map benchmark names to friendly library names
+      let library = name;
+      if (name.startsWith("Jslog")) library = "jslog";
+      else if (
+        name.startsWith("Pino") &&
+        !name.includes("MinLength") &&
+        !name.includes("NodeStream")
+      )
+        library = "pino";
+      else if (name.startsWith("Bunyan")) library = "bunyan";
+      else if (name.startsWith("Winston")) library = "winston";
+      else continue; // Skip MinLength, NodeStream variants
+
+      results.push({ library, time });
+    }
+  }
+
+  // Group by library and take best (fastest) time
+  const grouped = {};
+  results.forEach((r) => {
+    if (!grouped[r.library] || r.time < grouped[r.library].time) {
+      grouped[r.library] = r;
+    }
+  });
+
+  // Convert back to array and sort by time (ascending)
+  const finalResults = Object.values(grouped).sort((a, b) => a.time - b.time);
+
+  // Add ranking
+  finalResults.forEach((r, i) => {
+    r.rank = i + 1;
+  });
+
+  return finalResults;
+};
+
+// Generate markdown table for Pino-style benchmarks
+const generatePinoTable = (results) => {
+  let table = "| Rank | Library | Time (ms) | Performance |\n";
+  table += "|------|---------|-----------|-------------|\n";
+
+  const fastest = results[0];
+
+  for (const r of results) {
+    const medal = getMedal(r.rank);
+    const highlight = r.library === "jslog" ? "**" : "";
+    const percentage =
+      r.time === fastest.time
+        ? "baseline"
+        : `${((r.time / fastest.time - 1) * 100).toFixed(1)}% slower`;
+    table += `| ${medal} ${r.rank} | ${highlight}${
+      r.library
+    }${highlight} | ${r.time.toFixed(2)} | ${percentage} |\n`;
+  }
+
+  return table;
+};
+
+// Generate Pino-style comparison
+const generatePinoComparison = (results) => {
+  const fastest = results[0];
+  const jslogResult = results.find((r) => r.library === "jslog");
+
+  if (!jslogResult || results.length < 2) return "";
+
+  let comparison = "\n### jslog Performance\n\n";
+
+  if (jslogResult.rank === 1) {
+    const secondPlace = results[1];
+    const advantage = ((secondPlace.time / jslogResult.time - 1) * 100).toFixed(
+      1
+    );
+    comparison += `✨ **jslog is the fastest!** ${advantage}% faster than ${secondPlace.library}.\n`;
+  } else {
+    const percentage = ((jslogResult.time / fastest.time - 1) * 100).toFixed(1);
+    comparison += `📊 jslog ranks #${jslogResult.rank}, ${percentage}% slower than ${fastest.library}.\n`;
+  }
+
+  return comparison;
+};
+
 // Get system information
 const getSystemInfo = () => {
   return {
@@ -235,7 +328,8 @@ const main = () => {
   const timestamp = new Date().toISOString().split("T")[0];
   const sysInfo = getSystemInfo();
 
-  // Run benchmarks
+  // Run original benchmarks
+  console.log(`${colors.yellow}Running original benchmarks...${colors.reset}`);
   const simpleOutput = runBenchmark("Simple Logging", "simple-logging.js");
   const complexOutput = runBenchmark("Complex Logging", "complex-logging.js");
   const throughputOutput = runBenchmark(
@@ -248,10 +342,41 @@ const main = () => {
     process.exit(1);
   }
 
-  // Parse results
+  // Parse original results
   const simpleResults = parseResults(simpleOutput, "simple");
   const complexResults = parseResults(complexOutput, "complex");
   const throughputResults = parseThroughputResults(throughputOutput);
+
+  // Run Pino-style benchmarks
+  console.log(
+    `\n${colors.yellow}Running Pino-style benchmarks...${colors.reset}`
+  );
+  const pinoDir = path.join(__dirname, "pino-style");
+  const pinoBenchmarks = {
+    basic: "basic.bench.js",
+    object: "object.bench.js",
+    "deep-object": "deep-object.bench.js",
+    "long-string": "long-string.bench.js",
+    child: "child.bench.js",
+    "child-child": "child-child.bench.js",
+    "multi-arg": "multi-arg.bench.js",
+  };
+
+  const pinoResults = {};
+  for (const [name, file] of Object.entries(pinoBenchmarks)) {
+    console.log(`${colors.yellow}  Running ${name}...${colors.reset}`);
+    try {
+      const output = execSync(`node ${path.join(pinoDir, file)}`, {
+        encoding: "utf8",
+        cwd: __dirname,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      pinoResults[name] = parsePinoResults(output);
+    } catch (error) {
+      console.error(`Failed to run ${name}:`, error.message);
+      pinoResults[name] = [];
+    }
+  }
 
   // Generate markdown
   let markdown = `\n\n`;
@@ -304,9 +429,57 @@ const main = () => {
   markdown += generateThroughputComparison(throughputResults);
 
   markdown += `\n---\n\n`;
+  markdown += `## 4. Pino-Style Benchmarks\n\n`;
+  markdown += `Direct comparison with Pino using fastbench (same benchmark structure as Pino uses).\n\n`;
+
+  // Add each Pino-style benchmark
+  const pinoBenchmarkDescriptions = {
+    basic: {
+      title: "Basic String Logging",
+      code: "logger.info('message')",
+    },
+    object: {
+      title: "Single Object Attribute",
+      code: "logger.info('message', jslog.String('hello', 'world'))",
+    },
+    "deep-object": {
+      title: "Deep Object Logging",
+      code: "logger.info('message', jslog.Any('deep', deepObject))",
+    },
+    "long-string": {
+      title: "Long String (2000 chars)",
+      code: "logger.info(longString)",
+    },
+    child: {
+      title: "Child Logger",
+      code: "childLogger.info('message', jslog.String('hello', 'world'))",
+    },
+    "child-child": {
+      title: "Nested Child Logger",
+      code: "childChildLogger.info('message')",
+    },
+    "multi-arg": {
+      title: "Multiple Arguments",
+      code: "logger.info('message', jslog.String('s', 'world'), jslog.Any('obj', {obj: true}), jslog.Int('num', 4))",
+    },
+  };
+
+  let pinoSectionNum = 1;
+  for (const [name, desc] of Object.entries(pinoBenchmarkDescriptions)) {
+    if (pinoResults[name] && pinoResults[name].length > 0) {
+      markdown += `### 4.${pinoSectionNum}. ${desc.title}\n\n`;
+      markdown += `\`\`\`javascript\n${desc.code}\n\`\`\`\n\n`;
+      markdown += generatePinoTable(pinoResults[name]);
+      markdown += generatePinoComparison(pinoResults[name]);
+      markdown += `\n`;
+      pinoSectionNum++;
+    }
+  }
+
+  markdown += `\n---\n\n`;
   markdown += `## Summary\n\n`;
 
-  // Calculate overall ranking
+  // Calculate overall ranking from original benchmarks
   const jslogRanks = [
     simpleResults.find((r) => r.library === "jslog")?.rank || 0,
     complexResults.find((r) => r.library === "jslog")?.rank || 0,
@@ -319,10 +492,31 @@ const main = () => {
   const firstPlaces = jslogRanks.filter((r) => r === 1).length;
   const topThree = jslogRanks.filter((r) => r <= 3).length;
 
-  markdown += `### Overall Performance\n\n`;
+  // Calculate Pino-style benchmark stats
+  const pinoFirstPlaces = Object.values(pinoResults)
+    .filter((results) => results.length > 0)
+    .filter((results) => {
+      const jslog = results.find((r) => r.library === "jslog");
+      return jslog && jslog.rank === 1;
+    }).length;
+
+  const pinoTotal = Object.values(pinoResults).filter(
+    (r) => r.length > 0
+  ).length;
+
+  markdown += `### Original Benchmarks Performance\n\n`;
   markdown += `- **Average Rank**: ${avgRank}\n`;
   markdown += `- **1st Place Finishes**: ${firstPlaces}/3\n`;
   markdown += `- **Top 3 Finishes**: ${topThree}/3\n\n`;
+
+  if (pinoTotal > 0) {
+    markdown += `### Pino-Style Benchmarks Performance\n\n`;
+    markdown += `- **1st Place Finishes**: ${pinoFirstPlaces}/${pinoTotal}\n`;
+    markdown += `- **Win Rate**: ${(
+      (pinoFirstPlaces / pinoTotal) *
+      100
+    ).toFixed(1)}%\n\n`;
+  }
 
   if (firstPlaces > 0) {
     markdown += `🏆 **jslog achieved ${firstPlaces} first-place finish${
@@ -367,9 +561,18 @@ const main = () => {
     `\n${colors.bright}${colors.green}✅ Benchmark report generated: ${outputPath}${colors.reset}`
   );
   console.log(`\n${colors.blue}Summary:${colors.reset}`);
-  console.log(`  Average Rank: ${avgRank}`);
-  console.log(`  1st Place: ${firstPlaces}/3`);
-  console.log(`  Top 3: ${topThree}/3\n`);
+  console.log(`  Original Benchmarks:`);
+  console.log(`    Average Rank: ${avgRank}`);
+  console.log(`    1st Place: ${firstPlaces}/3`);
+  console.log(`    Top 3: ${topThree}/3`);
+  if (pinoTotal > 0) {
+    console.log(`  Pino-Style Benchmarks:`);
+    console.log(`    1st Place: ${pinoFirstPlaces}/${pinoTotal}`);
+    console.log(
+      `    Win Rate: ${((pinoFirstPlaces / pinoTotal) * 100).toFixed(1)}%`
+    );
+  }
+  console.log();
 };
 
 main();
