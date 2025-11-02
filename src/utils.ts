@@ -512,12 +512,15 @@ export function HttpRes(res: HttpResponse): Attr[] {
 /**
  * SQL query helper
  */
-export function SqlQuery(options: {
+
+export interface SqlQueryOptions {
   query: string;
   params?: any[];
   duration?: number;
   rows?: number;
-}): Attr[] {
+}
+
+export function SqlQuery(options: SqlQueryOptions): Attr[] {
   const attrs: Attr[] = [{ key: "sql_query", value: options.query }];
 
   if (options.params !== undefined) {
