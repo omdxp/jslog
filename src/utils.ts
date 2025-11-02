@@ -512,18 +512,28 @@ export function HttpRes(res: HttpResponse): Attr[] {
 /**
  * SQL query helper
  */
-export function SqlQuery(
-  query: string,
-  duration?: number,
-  rows?: number
-): Attr[] {
-  const attrs: Attr[] = [{ key: "sql_query", value: query }];
 
-  if (duration !== undefined) {
-    attrs.push({ key: "sql_duration", value: `${duration.toFixed(2)}ms` });
+export interface SqlQueryOptions {
+  query: string;
+  params?: any[];
+  duration?: number;
+  rows?: number;
+}
+
+export function SqlQuery(options: SqlQueryOptions): Attr[] {
+  const attrs: Attr[] = [{ key: "sql_query", value: options.query }];
+
+  if (options.params !== undefined) {
+    attrs.push({ key: "sql_params", value: options.params });
   }
-  if (rows !== undefined) {
-    attrs.push({ key: "sql_rows", value: rows });
+  if (options.duration !== undefined) {
+    attrs.push({
+      key: "sql_duration",
+      value: `${options.duration.toFixed(2)}ms`,
+    });
+  }
+  if (options.rows !== undefined) {
+    attrs.push({ key: "sql_rows", value: options.rows });
   }
 
   return attrs;

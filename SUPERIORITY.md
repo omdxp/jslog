@@ -254,11 +254,12 @@ const logger = New(new MiddlewareHandler({
 Structured logging helpers for database operations.
 
 ```typescript
-logger.info("Query executed", ...SqlQuery(
-  "SELECT * FROM users WHERE active = true",
-  45.23, // duration in ms
-  142    // rows returned
-));
+logger.info("Query executed", ...SqlQuery({
+  query: "SELECT * FROM users WHERE active = true",
+  params: [true],
+  duration: 45.23, // duration in ms
+  rows: 142        // rows returned
+}));
 ```
 
 **Go slog equivalent**: Manual attribute construction for SQL logging.
