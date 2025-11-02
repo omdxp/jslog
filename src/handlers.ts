@@ -398,8 +398,9 @@ export class TextHandler extends BaseHandler {
       replaceAttr: this.replaceAttr,
       writer: this.writer,
     });
-    handler.attrs = [...this.attrs, ...attrs];
-    handler.groups = [...this.groups];
+    // Optimized: use concat instead of spread - slightly faster for small arrays
+    handler.attrs = this.attrs.concat(attrs);
+    handler.groups = this.groups.slice(); // slice() is faster than spread for arrays
     handler.hasGroups = this.hasGroups;
     handler.hasReplaceAttr = this.hasReplaceAttr;
     handler.hasHandlerAttrs = handler.attrs.length > 0;
@@ -415,8 +416,8 @@ export class TextHandler extends BaseHandler {
       replaceAttr: this.replaceAttr,
       writer: this.writer,
     });
-    handler.attrs = [...this.attrs];
-    handler.groups = [...this.groups, name];
+    handler.attrs = this.attrs.slice(); // slice() is faster than spread for arrays
+    handler.groups = this.groups.concat([name]); // concat is faster than spread
     handler.hasGroups = true; // Update flag since we're adding a group
     handler.hasReplaceAttr = this.hasReplaceAttr;
     handler.hasHandlerAttrs = this.hasHandlerAttrs;
@@ -536,12 +537,83 @@ export class JSONHandler extends BaseHandler {
     const attrs = record.attrs;
     const len = attrs.length;
 
-    for (let i = 0; i < len; i++) {
-      const attr = attrs[i];
-      const val = attr.value;
-      const t = typeof val;
+    // Optimize for common cases: 0, 1, 2, 3 attributes
+    if (len === 0) {
+      // No attributes - fast path
+      json += "}\n";
+      this.writer.write(json);
+      return;
+    }
 
-      // Fastest possible type switching - check primitives first
+    // Process attributes inline - unrolled for first 3 (most common)
+    let attr = attrs[0];
+    let val = attr.value;
+    let t = typeof val;
+
+    if (t === "string") {
+      json += ',"' + attr.key + '":"' + val + '"';
+    } else if (t === "number" || t === "boolean") {
+      json += ',"' + attr.key + '":' + val;
+    } else if (val == null) {
+      json += ',"' + attr.key + '":null';
+    } else {
+      json += ',"' + attr.key + '":' + JSON.stringify(val);
+    }
+
+    if (len === 1) {
+      json += "}\n";
+      this.writer.write(json);
+      return;
+    }
+
+    // Second attribute
+    attr = attrs[1];
+    val = attr.value;
+    t = typeof val;
+
+    if (t === "string") {
+      json += ',"' + attr.key + '":"' + val + '"';
+    } else if (t === "number" || t === "boolean") {
+      json += ',"' + attr.key + '":' + val;
+    } else if (val == null) {
+      json += ',"' + attr.key + '":null';
+    } else {
+      json += ',"' + attr.key + '":' + JSON.stringify(val);
+    }
+
+    if (len === 2) {
+      json += "}\n";
+      this.writer.write(json);
+      return;
+    }
+
+    // Third attribute
+    attr = attrs[2];
+    val = attr.value;
+    t = typeof val;
+
+    if (t === "string") {
+      json += ',"' + attr.key + '":"' + val + '"';
+    } else if (t === "number" || t === "boolean") {
+      json += ',"' + attr.key + '":' + val;
+    } else if (val == null) {
+      json += ',"' + attr.key + '":null';
+    } else {
+      json += ',"' + attr.key + '":' + JSON.stringify(val);
+    }
+
+    if (len === 3) {
+      json += "}\n";
+      this.writer.write(json);
+      return;
+    }
+
+    // Remaining attributes (rare case)
+    for (let i = 3; i < len; i++) {
+      attr = attrs[i];
+      val = attr.value;
+      t = typeof val;
+
       if (t === "string") {
         json += ',"' + attr.key + '":"' + val + '"';
       } else if (t === "number" || t === "boolean") {
@@ -549,7 +621,6 @@ export class JSONHandler extends BaseHandler {
       } else if (val == null) {
         json += ',"' + attr.key + '":null';
       } else {
-        // Objects/arrays - inline JSON.stringify
         json += ',"' + attr.key + '":' + JSON.stringify(val);
       }
     }
@@ -789,8 +860,9 @@ export class JSONHandler extends BaseHandler {
       replaceAttr: this.replaceAttr,
       writer: this.writer,
     });
-    handler.attrs = [...this.attrs, ...attrs];
-    handler.groups = [...this.groups];
+    // Optimized: use concat instead of spread - slightly faster for small arrays
+    handler.attrs = this.attrs.concat(attrs);
+    handler.groups = this.groups.slice(); // slice() is faster than spread for arrays
     handler.hasGroups = this.hasGroups;
     handler.hasReplaceAttr = this.hasReplaceAttr;
     handler.hasHandlerAttrs = handler.attrs.length > 0;
@@ -806,8 +878,8 @@ export class JSONHandler extends BaseHandler {
       replaceAttr: this.replaceAttr,
       writer: this.writer,
     });
-    handler.attrs = [...this.attrs];
-    handler.groups = [...this.groups, name];
+    handler.attrs = this.attrs.slice(); // slice() is faster than spread for arrays
+    handler.groups = this.groups.concat([name]); // concat is faster than spread
     handler.hasGroups = true; // Update flag since we're adding a group
     handler.hasReplaceAttr = this.hasReplaceAttr;
     handler.hasHandlerAttrs = this.hasHandlerAttrs;
