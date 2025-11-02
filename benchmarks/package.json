@@ -8,14 +8,18 @@
     "bench:simple": "node simple-logging.js",
     "bench:complex": "node complex-logging.js",
     "bench:throughput": "node high-throughput.js",
-    "bench:report": "node generate-report.js"
+    "bench:report": "node generate-report.js",
+    "bench:pino": "node runbench.js",
+    "bench:pino:all": "node runbench.js all",
+    "bench:pino:report": "node generate-pino-report.js > PINO-BENCH.md"
   },
   "dependencies": {
     "@omdxp/jslog": "file:..",
-    "pino": "^10.1.0",
-    "winston": "^3.18.0",
+    "benchmark": "^2.1.4",
     "bunyan": "^2.0.5",
+    "fastbench": "^1.0.1",
     "log4js": "^6.9.1",
-    "benchmark": "^2.1.4"
+    "pino": "^10.1.0",
+    "winston": "^3.18.0"
   }
 }
