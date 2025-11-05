@@ -856,7 +856,13 @@ export class PrettyHandler implements Handler {
   }
 
   /**
-   * Format a value into a pretty string representation
+   * Formats a value into a pretty string representation for logging.
+   *
+   * Handles primitives, arrays, objects, and prevents infinite recursion by limiting depth.
+   *
+   * @param value - The value to format (can be any type supported by logger).
+   * @param depth - Current recursion depth (default: 0).
+   * @returns A string representing the formatted value.
    */
   private formatValue(value: Value, depth: number = 0): string {
     // Prevent infinite recursion
