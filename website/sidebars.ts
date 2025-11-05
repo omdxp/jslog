@@ -29,6 +29,7 @@ const sidebars: SidebarsConfig = {
       items: [
         "advanced/file-handler",
         "advanced/color-handler",
+        "advanced/pretty-handler",
         "advanced/buffered-handler",
         "advanced/sampling-handler",
         "advanced/filter-handler",

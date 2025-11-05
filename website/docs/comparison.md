@@ -40,7 +40,22 @@ logger.error('Critical error detected');  // Red!
 
 **Go slog**: Requires third-party packages.
 
-### 2. FileHandler with Rotation
+### 2. PrettyHandler
+Format nested objects with proper indentation for readable output:
+
+```typescript
+const logger = New(new PrettyHandler({
+  handler: new ColorHandler(),
+  indent: 2
+}));
+logger.info('Complex data', Any('user', {
+  profile: { settings: { theme: 'dark' } }
+}));
+```
+
+**Go slog**: No built-in pretty formatting for nested objects.
+
+### 3. FileHandler with Rotation
 Built-in file logging with automatic rotation:
 
 ```typescript
@@ -53,7 +68,7 @@ const logger = New(new FileHandler({
 
 **Go slog**: Requires external libraries like `lumberjack`.
 
-### 3. BufferedHandler
+### 4. BufferedHandler
 Batch log writing for better performance:
 
 ```typescript
@@ -66,7 +81,7 @@ const logger = New(new BufferedHandler({
 
 **Go slog**: Manual buffering implementation required.
 
-### 4. SamplingHandler
+### 5. SamplingHandler
 Probabilistic sampling for high-traffic apps:
 
 ```typescript
@@ -78,7 +93,7 @@ const logger = New(new SamplingHandler({
 
 **Go slog**: Custom handler wrapper needed.
 
-### 5. FilterHandler
+### 6. FilterHandler
 Advanced filtering beyond level-based filtering:
 
 ```typescript
@@ -90,7 +105,7 @@ const logger = New(new FilterHandler({
 
 **Go slog**: Custom handler implementation required.
 
-### 6. AsyncHandler
+### 7. AsyncHandler
 Non-blocking log operations:
 
 ```typescript
@@ -102,7 +117,7 @@ const logger = New(new AsyncHandler({
 
 **Go slog**: While Go has goroutines, explicit async patterns require manual setup.
 
-### 7. Middleware Pattern
+### 8. Middleware Pattern
 Composable handler middleware:
 
 ```typescript
@@ -119,7 +134,7 @@ const logger = New(new MiddlewareHandler({
 
 **Go slog**: Handler wrapping pattern must be manually implemented.
 
-### 8. Built-in Metrics
+### 9. Built-in Metrics
 Automatic logging statistics:
 
 ```typescript
@@ -135,7 +150,7 @@ console.log(metrics.getStats());
 
 **Go slog**: No built-in metrics.
 
-### 9. Deduplication
+### 10. Deduplication
 Automatic spam prevention:
 
 ```typescript
@@ -150,7 +165,7 @@ logger.info('Repeated message');  // Deduplicated!
 
 **Go slog**: Manual implementation needed.
 
-### 10. Rate Limiting
+### 11. Rate Limiting
 Automatic rate limiting:
 
 ```typescript
@@ -162,7 +177,7 @@ const logger = New(new MiddlewareHandler({
 
 **Go slog**: Manual rate limiting required.
 
-### 11. Fluent Attribute Builder
+### 12. Fluent Attribute Builder
 Chain attributes easily:
 
 ```typescript
@@ -178,7 +193,7 @@ logger.info('User created', ...attrs);
 
 **Go slog**: No fluent API.
 
-### 12. Performance Timers
+### 13. Performance Timers
 Built-in timing utilities:
 
 ```typescript
@@ -189,7 +204,7 @@ logger.info('Operation complete', timer.elapsed());
 
 **Go slog**: Manual timer implementation needed.
 
-### 13. Correlation IDs
+### 14. Correlation IDs
 Global request/trace tracking:
 
 ```typescript
@@ -201,7 +216,7 @@ logger.info('Request 2', CorrelationId());  // Includes trace-123
 
 **Go slog**: Manual context management required.
 
-### 14. HTTP Helpers
+### 15. HTTP Helpers
 Easy request/response logging:
 
 ```typescript
@@ -220,7 +235,7 @@ logger.info('HTTP response', ...HttpRes({
 
 **Go slog**: Manual attribute construction.
 
-### 15. System Info
+### 16. System Info
 Environment and memory helpers:
 
 ```typescript
@@ -230,7 +245,7 @@ logger.info('Memory status', ...MemoryUsage());
 
 **Go slog**: Manual info gathering.
 
-### 16. Data Masking
+### 17. Data Masking
 Built-in PII redaction:
 
 ```typescript
@@ -242,7 +257,7 @@ logger.info('User data',
 
 **Go slog**: Manual masking functions needed.
 
-### 17. Stack Traces
+### 18. Stack Traces
 Automatic stack trace capture:
 
 ```typescript
@@ -251,7 +266,7 @@ logger.error('Error occurred', StackTrace());
 
 **Go slog**: Manual stack trace capture.
 
-### 18. Caller Info
+### 19. Caller Info
 Automatic source location:
 
 ```typescript
@@ -261,7 +276,7 @@ logger.info('Log with caller', Caller());
 
 **Go slog**: Has `addSource` but limited.
 
-### 19. Error Boundaries
+### 20. Error Boundaries
 Catch handler errors safely:
 
 ```typescript
@@ -273,7 +288,7 @@ const logger = New(new MiddlewareHandler({
 
 **Go slog**: Manual error handling needed.
 
-### 20. Circular Reference Handling
+### 21. Circular Reference Handling
 Safe JSON serialization:
 
 ```typescript
@@ -287,7 +302,7 @@ logger.info('Data', Any('obj', circular));  // Safely handled!
 
 ## Summary
 
-jslog gives you **everything Go's slog has**, plus **20+ additional features** specifically designed for Node.js production environments!
+jslog gives you **everything Go's slog has**, plus **21+ additional features** specifically designed for Node.js production environments!
 
 ### When to Use jslog
 

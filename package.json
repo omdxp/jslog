@@ -32,6 +32,7 @@
     "test:basic": "tsx src/examples/basic.ts",
     "test:advanced": "tsx src/examples/advanced.ts",
     "test:beast": "tsx src/examples/beast-mode.ts",
+    "test:pretty": "tsx src/examples/pretty-handler.ts",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },

@@ -14,7 +14,28 @@ logger.error("Critical error detected");
 
 **Go slog equivalent**: Requires third-party packages or manual ANSI code implementation.
 
-### 2. FileHandler with Automatic Rotation
+### 2. PrettyHandler
+Format nested objects with proper indentation for human-readable output. Fully supports groups with proper prefix tracking.
+
+```typescript
+const logger = New(new PrettyHandler({
+  handler: new ColorHandler(),
+  indent: 2
+}));
+
+logger.info('Complex data', Any('user', {
+  profile: { settings: { theme: 'dark' } }
+}));
+
+// Groups are properly tracked and displayed
+const appLogger = logger.withGroup('app');
+appLogger.info('Application event', { event: 'startup' });
+// Output: app.event="startup"
+```
+
+**Go slog equivalent**: No built-in pretty formatting for nested objects.
+
+### 3. FileHandler with Automatic Rotation
 Built-in file logging with configurable size-based rotation and backup retention.
 
 ```typescript
@@ -28,7 +49,7 @@ const logger = New(new FileHandler({
 
 **Go slog equivalent**: Requires external libraries like `lumberjack` or manual implementation.
 
-### 3. BufferedHandler
+### 4. BufferedHandler
 Batched log writing for improved throughput in high-volume scenarios.
 
 ```typescript
@@ -41,7 +62,7 @@ const logger = New(new BufferedHandler({
 
 **Go slog equivalent**: Manual buffering implementation required.
 
-### 4. SamplingHandler
+### 5. SamplingHandler
 Probabilistic sampling for managing log volume in high-traffic applications.
 
 ```typescript
@@ -54,7 +75,7 @@ const logger = New(new SamplingHandler({
 
 **Go slog equivalent**: Custom wrapper implementation needed.
 
-### 5. FilterHandler
+### 6. FilterHandler
 Advanced filtering logic beyond basic level-based filtering.
 
 ```typescript
@@ -66,7 +87,7 @@ const logger = New(new FilterHandler({
 
 **Go slog equivalent**: Requires custom handler wrapper.
 
-### 6. AsyncHandler
+### 7. AsyncHandler
 Non-blocking log operations with internal buffering and error handling.
 
 ```typescript
@@ -78,7 +99,7 @@ const logger = New(new AsyncHandler({
 
 **Go slog equivalent**: While Go has goroutines, explicit async handler patterns require manual implementation.
 
-### 7. Middleware Pattern
+### 8. Middleware Pattern
 Composable handler middleware for cross-cutting logging concerns.
 
 ```typescript
@@ -95,7 +116,7 @@ const logger = New(new MiddlewareHandler({
 
 **Go slog equivalent**: Handler wrapping pattern must be manually implemented.
 
-### 8. MetricsMiddleware
+### 9. MetricsMiddleware
 Built-in logging statistics and metrics collection.
 
 ```typescript
@@ -112,7 +133,7 @@ console.log(metrics.getStats());
 
 **Go slog equivalent**: Manual metrics tracking implementation required.
 
-### 9. Deduplication Middleware
+### 10. Deduplication Middleware
 Automatic detection and suppression of duplicate log entries within a time window.
 
 ```typescript
@@ -126,7 +147,7 @@ logger.info("Same message"); // Automatically suppressed
 
 **Go slog equivalent**: Custom deduplication logic needed.
 
-### 10. Rate Limiting Middleware
+### 11. Rate Limiting Middleware
 Built-in rate limiting to prevent log flooding.
 
 ```typescript
@@ -138,7 +159,7 @@ const logger = New(new MiddlewareHandler({
 
 **Go slog equivalent**: External rate limiting library or manual implementation.
 
-### 11. Fluent Attribute Builder
+### 12. Fluent Attribute Builder
 Chainable API for constructing complex attribute sets.
 
 ```typescript
@@ -155,7 +176,7 @@ logger.info("User event",
 
 **Go slog equivalent**: Standard attribute construction only.
 
-### 12. Performance Timers
+### 13. Performance Timers
 Integrated timing utilities for performance measurement.
 
 ```typescript
@@ -167,7 +188,7 @@ logger.info("Query complete", timer.elapsed());
 
 **Go slog equivalent**: Manual `time.Now()` usage and calculation.
 
-### 13. Correlation ID Tracking
+### 14. Correlation ID Tracking
 Global correlation ID management for distributed tracing.
 
 ```typescript
@@ -179,7 +200,7 @@ logger.info("Request 2", CorrelationId());
 
 **Go slog equivalent**: Manual context propagation required.
 
-### 14. HTTP Request/Response Helpers
+### 15. HTTP Request/Response Helpers
 Pre-built attribute helpers for web application logging.
 
 ```typescript
@@ -198,7 +219,7 @@ logger.info("Response", ...HttpRes({
 
 **Go slog equivalent**: Manual attribute construction for each field.
 
-### 15. System Information Helpers
+### 16. System Information Helpers
 Built-in helpers for environment and resource usage logging.
 
 ```typescript
@@ -211,7 +232,7 @@ logger.warn("High memory", ...MemoryUsage());
 
 **Go slog equivalent**: Manual extraction from `runtime` package.
 
-### 16. Data Masking Utilities
+### 17. Data Masking Utilities
 Built-in PII redaction for sensitive data.
 
 ```typescript
@@ -223,7 +244,7 @@ logger.info("User signup",
 
 **Go slog equivalent**: Custom masking functions required.
 
-### 17. Stack Traces & Caller Information
+### 18. Stack Traces & Caller Information
 Automatic stack trace capture and source location tracking.
 
 ```typescript
@@ -234,7 +255,7 @@ logger.info("Debug", Caller());
 
 **Go slog equivalent**: `runtime.Caller` must be manually invoked.
 
-### 18. Error Boundary Middleware
+### 19. Error Boundary Middleware
 Graceful error handling to prevent handler failures from crashing the application.
 
 ```typescript
@@ -250,7 +271,7 @@ const logger = New(new MiddlewareHandler({
 
 **Go slog equivalent**: Manual recover/panic handling in custom wrappers.
 
-### 19. SQL Query Helpers
+### 20. SQL Query Helpers
 Structured logging helpers for database operations.
 
 ```typescript
@@ -264,7 +285,7 @@ logger.info("Query executed", ...SqlQuery({
 
 **Go slog equivalent**: Manual attribute construction for SQL logging.
 
-### 20. Safe Circular Reference Handling
+### 21. Safe Circular Reference Handling
 Automatic detection and handling of circular object references in logged data.
 
 ```typescript
@@ -286,6 +307,7 @@ logger.info("Complex object", Any("data", obj));
 | Text handler | Yes | Yes | Human-readable output |
 | JSON handler | Yes | Yes | Machine-parseable output |
 | Color output | Yes | No | Requires third-party library in Go |
+| Pretty formatting | Yes | No | Nested object indentation |
 | File logging | Yes | No | Requires external package in Go |
 | Log rotation | Yes | No | Manual implementation in Go |
 | Buffering | Yes | No | Performance optimization |

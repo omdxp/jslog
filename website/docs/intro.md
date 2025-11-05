@@ -24,6 +24,7 @@ jslog achieves #1 ranking in simple logging benchmarks, outperforming pino by 0.
 
 - **Everything Go's slog has** - Full API compatibility with Go's log/slog
 - **ColorHandler** - Beautiful, colorful console output
+- **PrettyHandler** - Format nested objects with proper indentation
 - **FileHandler** - Write to files with automatic rotation
 - **BufferedHandler** - Batch logs for performance
 - **SamplingHandler** - Log only a percentage of messages

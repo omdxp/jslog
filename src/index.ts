@@ -69,11 +69,13 @@ export {
   SamplingHandler,
   FilterHandler,
   ColorHandler,
+  PrettyHandler,
   type FileHandlerOptions,
   type BufferedHandlerOptions,
   type SamplingHandlerOptions,
   type FilterHandlerOptions,
   type ColorHandlerOptions,
+  type PrettyHandlerOptions,
 } from "./advanced-handlers";
 
 // Async & Middleware support (composition FTW!)

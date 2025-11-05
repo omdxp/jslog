@@ -34,6 +34,7 @@ See full comparison in [SUPERIORITY.md](./SUPERIORITY.md)
 
 ### Advanced Features (Go slog can't do this!)
 - **ColorHandler**: Beautiful, colorful console output
+- **PrettyHandler**: Format nested objects with proper indentation
 - **FileHandler**: Write to files with automatic rotation
 - **BufferedHandler**: Batch logs for performance
 - **SamplingHandler**: Log only a percentage of messages
