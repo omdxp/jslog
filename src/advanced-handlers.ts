@@ -774,3 +774,310 @@ export class ColorHandler implements Handler {
     return handler;
   }
 }
+
+/**
+ * Configuration options for PrettyHandler.
+ */
+export interface PrettyHandlerOptions {
+  /** The underlying handler to send prettified logs to */
+  handler: Handler;
+  /** Number of spaces for indentation (default: 2) */
+  indent?: number;
+  /** Maximum depth for nested objects (default: 10) */
+  maxDepth?: number;
+  /** Whether to use compact mode for arrays (default: false) */
+  compactArrays?: boolean;
+}
+
+/**
+ * PrettyHandler prettifies log output with proper formatting and indentation.
+ *
+ * Works as a wrapper around other handlers (TextHandler, JSONHandler) to format
+ * nested objects, arrays, and complex data structures in a human-readable way.
+ * Can be combined with ColorHandler for colorized pretty output.
+ *
+ * Features:
+ * - Deep indentation for nested objects
+ * - Smart array formatting
+ * - Configurable depth limits
+ * - Works with any underlying handler
+ * - Composable with ColorHandler, MultiHandler, etc.
+ *
+ * @example Basic usage with TextHandler
+ * ```typescript
+ * const handler = new PrettyHandler({
+ *   handler: new TextHandler()
+ * });
+ * const logger = new Logger(handler);
+ * logger.info("User data", Any("user", {
+ *   id: 123,
+ *   profile: { name: "Alice", settings: { theme: "dark" } }
+ * }));
+ * ```
+ *
+ * @example Combined with ColorHandler
+ * ```typescript
+ * const handler = new PrettyHandler({
+ *   handler: new ColorHandler(),
+ *   indent: 4
+ * });
+ * const logger = new Logger(handler);
+ * logger.info("Colorized pretty output", Any("data", complexObject));
+ * ```
+ *
+ * @example In MultiHandler for multiple outputs
+ * ```typescript
+ * const handler = new MultiHandler([
+ *   new PrettyHandler({ handler: new ColorHandler() }),  // Pretty console
+ *   new JSONHandler({ writer: fileStream })              // Compact file
+ * ]);
+ * ```
+ */
+export class PrettyHandler implements Handler {
+  private handler: Handler;
+  private indent: number;
+  private maxDepth: number;
+  private compactArrays: boolean;
+  private groups: string[] = [];
+
+  constructor(options: PrettyHandlerOptions) {
+    this.handler = options.handler;
+    this.indent = options.indent ?? 2;
+    this.maxDepth = options.maxDepth ?? 10;
+    this.compactArrays = options.compactArrays ?? false;
+  }
+
+  enabled(level: Level): boolean {
+    return this.handler.enabled(level);
+  }
+
+  needsSource(): boolean {
+    return this.handler.needsSource?.() ?? false;
+  }
+
+  /**
+   * Formats a value into a pretty string representation for logging.
+   *
+   * Handles primitives, arrays, objects, and prevents infinite recursion by limiting depth.
+   *
+   * @param value - The value to format (can be any type supported by logger).
+   * @param depth - Current recursion depth (default: 0).
+   * @returns A string representing the formatted value.
+   */
+  private formatValue(value: Value, depth: number = 0): string {
+    // Prevent infinite recursion
+    if (depth > this.maxDepth) {
+      return "[Max depth reached]";
+    }
+
+    // Handle null/undefined
+    if (value === null) return "null";
+    if (value === undefined) return "undefined";
+
+    const type = typeof value;
+
+    // Handle primitives
+    if (type === "string") return `"${value}"`;
+    if (type === "number" || type === "boolean") return String(value);
+
+    // Handle Date
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+
+    // Handle Error
+    if (value instanceof Error) {
+      return this.formatValue(
+        {
+          name: value.name,
+          message: value.message,
+          stack: value.stack || "",
+        },
+        depth + 1
+      );
+    }
+
+    // Handle Arrays
+    if (Array.isArray(value)) {
+      if (value.length === 0) return "[]";
+
+      // Check if array contains only primitives for compact mode
+      const allPrimitives = value.every(
+        (v) =>
+          v === null ||
+          v === undefined ||
+          typeof v === "string" ||
+          typeof v === "number" ||
+          typeof v === "boolean"
+      );
+
+      if (this.compactArrays && allPrimitives) {
+        return (
+          "[" +
+          value.map((v) => this.formatValue(v, depth + 1)).join(", ") +
+          "]"
+        );
+      }
+
+      // Multi-line array
+      const indent = this.indent;
+      const items = value
+        .map((item) => {
+          const formatted = this.formatValue(item, depth + 1);
+          const lines = formatted.split("\n");
+          // Indent each line
+          return lines.map((line, i) => " ".repeat(indent) + line).join("\n");
+        })
+        .join(",\n");
+
+      return `[\n${items}\n]`;
+    }
+
+    // Handle Attr objects
+    if (
+      type === "object" &&
+      value !== null &&
+      "key" in (value as object) &&
+      "value" in (value as object)
+    ) {
+      const attr = value as Attr;
+      return this.formatValue({ [attr.key]: attr.value }, depth + 1);
+    }
+
+    // Handle LogValuer interface
+    if (
+      type === "object" &&
+      value !== null &&
+      "logValue" in (value as object) &&
+      typeof (value as any).logValue === "function"
+    ) {
+      return this.formatValue((value as any).logValue(), depth + 1);
+    }
+
+    // Handle plain objects
+    if (type === "object" && value !== null) {
+      const entries = Object.entries(value);
+      if (entries.length === 0) return "{}";
+
+      // Sort keys for consistent output
+      entries.sort(([a], [b]) => a.localeCompare(b));
+
+      const indent = this.indent;
+      const props = entries
+        .map(([key, val]) => {
+          const formatted = this.formatValue(val as Value, depth + 1);
+          const lines = formatted.split("\n");
+
+          // First line goes after the key
+          let result = `${" ".repeat(indent)}${key}: ${lines[0]}`;
+
+          // Subsequent lines are indented
+          if (lines.length > 1) {
+            for (let i = 1; i < lines.length; i++) {
+              result += "\n" + " ".repeat(indent) + lines[i];
+            }
+          }
+
+          return result;
+        })
+        .join(",\n");
+
+      return `{\n${props}\n}`;
+    }
+
+    return String(value);
+  }
+
+  handle(record: Record): void {
+    if (record.attrs.length === 0) {
+      // No attributes, just pass through
+      this.handler.handle(record);
+      return;
+    }
+
+    // Output the message line first
+    this.handler.handle({
+      ...record,
+      attrs: [],
+    });
+
+    // Then output each attribute directly to the writer
+    const writer = (this.handler as any).writer || process.stdout;
+
+    for (const attr of record.attrs) {
+      // Prepend group names to the key
+      const key =
+        this.groups.length > 0
+          ? `${this.groups.join(".")}.${attr.key}`
+          : attr.key;
+
+      const formatted = this.formatValue(attr.value, 0);
+      const lines = formatted.split("\n");
+
+      // Check if it's a complex value (object/array)
+      const isComplex =
+        lines.length > 1 ||
+        formatted.startsWith("{") ||
+        formatted.startsWith("[");
+
+      if (isComplex) {
+        // For complex values: key on its own line, value indented below
+        writer.write(`${key}:\n`);
+        for (const line of lines) {
+          writer.write(line + "\n");
+        }
+      } else {
+        // For simple values: key=value on one line
+        writer.write(`${key}=${formatted}\n`);
+      }
+    }
+  }
+
+  withAttrs(attrs: Attr[]): Handler {
+    return new PrettyHandler({
+      handler: this.handler.withAttrs(attrs),
+      indent: this.indent,
+      maxDepth: this.maxDepth,
+      compactArrays: this.compactArrays,
+    });
+  }
+
+  withGroup(name: string): Handler {
+    const newHandler = new PrettyHandler({
+      handler: this.handler.withGroup(name),
+      indent: this.indent,
+      maxDepth: this.maxDepth,
+      compactArrays: this.compactArrays,
+    });
+    // Copy current groups and add the new one
+    newHandler.groups = [...this.groups, name];
+    return newHandler;
+  }
+
+  /**
+   * Closes the underlying handler if it supports closing.
+   *
+   * Useful for graceful shutdown when the wrapped handler (like FileHandler or BufferedHandler)
+   * requires cleanup.
+   *
+   * @returns A promise that resolves when the handler is closed
+   *
+   * @example
+   * ```typescript
+   * const handler = new PrettyHandler({
+   *   handler: new FileHandler({ filepath: './app.log' })
+   * });
+   *
+   * // On shutdown
+   * await handler.close();
+   * ```
+   */
+  async close(): Promise<void> {
+    if ("close" in this.handler && typeof this.handler.close === "function") {
+      const result = (this.handler as any).close();
+      if (result && typeof result.then === "function") {
+        await result;
+      }
+    }
+  }
+}

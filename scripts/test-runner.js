@@ -58,6 +58,32 @@ const tests = [
     ],
   },
   {
+    name: "PrettyHandler Tests",
+    script: "src/examples/pretty-handler.ts",
+    expectations: [
+      "Basic PrettyHandler",
+      "Nested object",
+      "bio:",
+      "settings:",
+      "theme:",
+      "PrettyHandler with JSONHandler",
+      "PrettyHandler + ColorHandler",
+      "Arrays and Complex Structures",
+      "events:",
+      "Compact Arrays Mode",
+      "Error Handling",
+      "MultiHandler",
+      "Groups with PrettyHandler",
+      "app.event=", // Group prefix test
+      "app.database.query:", // Nested group prefix test
+      "Deep Nesting Test",
+      "level6:",
+      "Max Depth Limit",
+      "[Max depth reached]",
+    ],
+    timeout: 10000,
+  },
+  {
     name: "Beast Mode Tests",
     script: "src/examples/beast-mode.ts",
     expectations: [

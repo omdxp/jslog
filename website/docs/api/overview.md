@@ -31,6 +31,7 @@ import {
   // Advanced Handlers
   FileHandler,
   ColorHandler,
+  PrettyHandler,
   BufferedHandler,
   SamplingHandler,
   FilterHandler,
