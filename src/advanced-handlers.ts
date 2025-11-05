@@ -941,7 +941,7 @@ export class PrettyHandler implements Handler {
       "value" in (value as object)
     ) {
       const attr = value as Attr;
-      return this.formatValue({ [attr.key]: (attr as any).value }, depth + 1);
+      return this.formatValue({ [attr.key]: attr.value }, depth + 1);
     }
 
     // Handle LogValuer interface
