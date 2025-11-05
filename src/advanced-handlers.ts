@@ -995,15 +995,9 @@ export class PrettyHandler implements Handler {
       return;
     }
 
-    // Output the message line first
-    this.handler.handle({
-      ...record,
-      attrs: [],
-    });
-
-    // Then output each attribute
-    const writer = (this.handler as any).writer || process.stdout;
-
+    // Build the prettified output for all attributes
+    const attrLines: string[] = [];
+    
     for (const attr of record.attrs) {
       // Prepend group names to the key
       const key =
@@ -1022,15 +1016,25 @@ export class PrettyHandler implements Handler {
 
       if (isComplex) {
         // For complex values: key on its own line, value indented below
-        writer.write(`${key}:\n`);
+        attrLines.push(`${key}:`);
         for (const line of lines) {
-          writer.write(line + "\n");
+          attrLines.push(line);
         }
       } else {
         // For simple values: key=value on one line
-        writer.write(`${key}=${formatted}\n`);
+        attrLines.push(`${key}=${formatted}`);
       }
     }
+
+    // Combine the original message with the prettified attributes
+    const enhancedMessage = record.message + "\n" + attrLines.join("\n");
+
+    // Pass the enhanced message to the wrapped handler with no attributes
+    this.handler.handle({
+      ...record,
+      message: enhancedMessage,
+      attrs: [],
+    });
   }
 
   withAttrs(attrs: Attr[]): Handler {
