@@ -4,7 +4,7 @@ A structured logging library for Node.js that makes Go's `log/slog` look basic.
 
 ## Why jslog?
 
-- Everything Go's slog has
+- Everything Go's slog has **+ variadic parameters (NEW in v1.7.0!)**
 - Plus 20+ features Go `slog` doesn't have
 - File logging with auto-rotation
 - Buffering, sampling, filtering
@@ -64,10 +64,16 @@ npm install @omdxp/jslog
 ```typescript
 import { info, warn, error, String, Int } from '@omdxp/jslog';
 
-// Simple logging
+// Go slog-style variadic parameters (NEW in v1.7.0!)
+info('Application started', 'env', 'production', 'port', 3000);
+warn('High memory usage', 'percentage', 85);
+error('Failed to connect', 'host', 'localhost');
+
+// Traditional style (still works)
 info('Application started', String('env', 'production'), Int('port', 3000));
-warn('High memory usage', Int('percentage', 85));
-error('Failed to connect', String('host', 'localhost'));
+
+// Mix both styles!
+info('Mixed', String('typed', 'value'), 'key', 'value');
 ```
 
 ## Usage
@@ -79,6 +85,12 @@ import { Logger, TextHandler, Level, String, Int } from '@omdxp/jslog';
 
 const logger = new Logger(new TextHandler({ level: Level.DEBUG }));
 
+// Go slog-style (NEW in v1.7.0!)
+logger.info('User logged in', 'user', 'alice', 'ip', '192.168.1.1');
+logger.warn('Rate limit exceeded', 'requests', 1000);
+logger.error('Database connection failed', 'error', 'timeout');
+
+// Traditional style
 logger.info('User logged in', String('user', 'alice'), String('ip', '192.168.1.1'));
 logger.warn('Rate limit exceeded', Int('requests', 1000));
 logger.error('Database connection failed', String('error', 'timeout'));
@@ -89,6 +101,16 @@ logger.error('Database connection failed', String('error', 'timeout'));
 ```typescript
 import { String, Int, Int64, Float64, Bool, Time, Duration, Any, Group } from '@omdxp/jslog';
 
+// Go slog-style variadic (automatically inferred types)
+logger.info('Event',
+  'name', 'user.created',
+  'userId', 42,
+  'score', 98.5,
+  'verified', true,
+  'metadata', { plan: 'pro' }
+);
+
+// Traditional typed style (explicit type control)
 logger.info('Event',
   String('name', 'user.created'),
   Int('userId', 42),

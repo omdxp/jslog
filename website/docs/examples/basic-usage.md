@@ -6,6 +6,13 @@ sidebar_position: 1
 
 Simple examples to get you started with jslog.
 
+:::tip NEW in v1.7.0
+jslog now supports Go slog-style variadic parameters! You can use either:
+- **Go style**: `info('msg', 'key', 'value', 'key2', 'value2')`
+- **Traditional**: `info('msg', String('key', 'value'), Int('key2', 42))`
+- **Mixed**: Both in the same call!
+:::
+
 ## Hello World
 
 The simplest possible logging:
@@ -24,6 +31,15 @@ Add structured data to your logs:
 ```typescript
 import { info, String, Int, Bool } from '@omdxp/jslog';
 
+// Go slog-style (NEW in v1.7.0!)
+info('User logged in',
+  'user', 'alice',
+  'ip', '192.168.1.1',
+  'session_duration', 3600,
+  'remember_me', true
+);
+
+// Traditional style
 info('User logged in',
   String('user', 'alice'),
   String('ip', '192.168.1.1'),
@@ -37,6 +53,13 @@ info('User logged in',
 ```typescript
 import { debug, info, warn, error, String } from '@omdxp/jslog';
 
+// Go slog-style variadic
+debug('Debugging info', 'state', 'initializing');
+info('Application started', 'version', '1.0.0');
+warn('Deprecated API used', 'api', '/v1/users');
+error('Connection failed', 'host', 'db.example.com');
+
+// Traditional style
 debug('Debugging info', String('state', 'initializing'));
 info('Application started', String('version', '1.0.0'));
 warn('Deprecated API used', String('api', '/v1/users'));
@@ -52,7 +75,12 @@ import { Logger, JSONHandler, Level, String } from '@omdxp/jslog';
 
 const logger = new Logger(new JSONHandler({ level: Level.INFO }));
 
+// Go slog-style
+logger.info('Custom logger', 'type', 'json');
+
+// Traditional
 logger.info('Custom logger', String('type', 'json'));
+
 // Output: {"time":"2024-01-01T00:00:00.000Z","level":"INFO","msg":"Custom logger","type":"json"}
 ```
 
@@ -65,14 +93,20 @@ import { New, TextHandler, String, Int } from '@omdxp/jslog';
 
 const logger = New(new TextHandler());
 
-// Create a request-scoped logger
+// Create a request-scoped logger using variadic style
 const requestLogger = logger.with(
+  'request_id', 'req-123',
+  'user_id', 'user-456'
+);
+
+// Or use traditional style
+const requestLogger2 = logger.with(
   String('request_id', 'req-123'),
   String('user_id', 'user-456')
 );
 
 requestLogger.info('Request received');
-requestLogger.info('Processing data', Int('records', 42));
+requestLogger.info('Processing data', 'records', 42);
 requestLogger.info('Request completed');
 // All three logs include request_id and user_id
 ```

@@ -8,16 +8,40 @@ Attributes are key-value pairs that add structured data to log records.
 
 ## What are Attributes?
 
-Attributes provide context to log messages in a structured, machine-parseable format:
+Attributes provide context to log messages in a structured, machine-parseable format.
+
+:::tip NEW in v1.7.0 - Variadic Parameters
+jslog now supports **Go slog-style variadic parameters**! You can use either:
+- **Go style**: `info('msg', 'key', 'value', 'key2', 'value2')`
+- **Traditional**: `info('msg', String('key', 'value'), Int('key2', 42))`
+- **Mixed**: Combine both styles in the same call!
+:::
 
 ```typescript
 import { info, String, Int, Bool } from '@omdxp/jslog';
 
+// Go slog-style (NEW in v1.7.0!)
+info('User action',
+  'user', 'alice',
+  'action', 'login',
+  'attempts', 3,
+  'success', true
+);
+
+// Traditional typed style
 info('User action',
   String('user', 'alice'),     // String attribute
   String('action', 'login'),   // String attribute
   Int('attempts', 3),          // Integer attribute
   Bool('success', true)        // Boolean attribute
+);
+
+// Mixed style - use both!
+info('User action',
+  String('user', 'alice'),   // Typed
+  'action', 'login',         // Variadic
+  Int('attempts', 3),        // Typed
+  'success', true            // Variadic
 );
 ```
 

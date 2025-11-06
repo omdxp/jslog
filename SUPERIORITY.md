@@ -2,6 +2,27 @@
 
 This document provides a comprehensive comparison between jslog and Go's standard library `log/slog` package, highlighting the additional capabilities that jslog provides for production logging requirements.
 
+## Core API Compatibility + Enhancements
+
+### Variadic Parameters (NEW in v1.7.0)
+jslog now supports **Go slog-style variadic parameters** for a more ergonomic API:
+
+```typescript
+// Go slog-style - pass key-value pairs directly
+logger.info('User login', 'user', 'alice', 'attempts', 3, 'success', true);
+
+// Traditional typed style - explicit type control
+logger.info('User login', String('user', 'alice'), Int('attempts', 3), Bool('success', true));
+
+// Mix both styles as needed
+logger.info('Mixed', String('typed', 'value'), 'key', 'value');
+```
+
+This matches Go's `slog.Info()` API exactly while preserving the option for explicit typing when needed.
+
+**Go slog**: `slog.Info("msg", "key", value, "key2", value2)`
+**jslog**: `info("msg", "key", value, "key2", value2)` ✅ Same API!
+
 ## Extended Feature Set
 
 ### 1. ColorHandler

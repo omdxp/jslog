@@ -14,10 +14,13 @@ import { Logger, TextHandler, Level, String, Int } from '@omdxp/jslog';
 // Create a logger
 const logger = new Logger(new TextHandler({ level: Level.INFO }));
 
-// Log some messages
+// NEW in v1.7.0: Go slog-style variadic parameters!
+logger.info('User logged in', 'user', 'alice', 'ip', '192.168.1.1');
+logger.warn('High CPU usage', 'percentage', 85);
+logger.error('Database connection failed', 'error', 'timeout');
+
+// Traditional style also works
 logger.info('User logged in', String('user', 'alice'), String('ip', '192.168.1.1'));
-logger.warn('High CPU usage', Int('percentage', 85));
-logger.error('Database connection failed', String('error', 'timeout'));
 ```
 
 Output:
@@ -34,9 +37,16 @@ For quick scripts, use the convenience functions:
 ```typescript
 import { info, warn, error, String, Int } from '@omdxp/jslog';
 
+// Go slog-style (NEW in v1.7.0!)
+info('Application started', 'env', 'production', 'port', 3000);
+warn('Memory usage high', 'usage', 512);
+error('Failed to connect', 'host', 'localhost');
+
+// Traditional style
 info('Application started', String('env', 'production'), Int('port', 3000));
-warn('Memory usage high', Int('usage', 512));
-error('Failed to connect', String('host', 'localhost'));
+
+// Mix both styles if needed
+info('Mixed', String('typed', 'value'), 'key', 'value');
 ```
 
 ## JSON Output
@@ -48,6 +58,10 @@ import { Logger, JSONHandler, Level, String, Int, Bool } from '@omdxp/jslog';
 
 const logger = new Logger(new JSONHandler({ level: Level.INFO }));
 
+// Go slog-style variadic (NEW in v1.7.0!)
+logger.info('Request processed', 'method', 'POST', 'path', '/api/users', 'status', 201, 'cached', false);
+
+// Traditional style
 logger.info('Request processed',
   String('method', 'POST'),
   String('path', '/api/users'),
@@ -66,16 +80,17 @@ Output:
 Create loggers with persistent attributes:
 
 ```typescript
-import { New, TextHandler, String } from '@omdxp/jslog';
+import { New, TextHandler, String, Int } from '@omdxp/jslog';
 
 const logger = New(new TextHandler());
 
 // Create a request logger with persistent request ID
-const requestLogger = logger.with(String('request_id', '123-456'));
+// Use either style for with() too!
+const requestLogger = logger.with('request_id', '123-456');
 
 requestLogger.info('Processing request');
-requestLogger.info('Query executed', Int('rows', 42));
-requestLogger.info('Response sent', Int('status', 200));
+requestLogger.info('Query executed', 'rows', 42);
+requestLogger.info('Response sent', 'status', 200);
 ```
 
 All logs will include `request_id="123-456"`.

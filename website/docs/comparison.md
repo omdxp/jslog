@@ -8,25 +8,41 @@ How jslog compares to Go's log/slog package.
 
 ## Core Compatibility
 
-jslog implements the complete Go slog API:
+jslog implements the complete Go slog API with **full variadic parameter support (NEW in v1.7.0)**:
 
 | Feature | Go slog | jslog | Status |
 |---------|---------|-------|--------|
-| `slog.Debug()` | Yes | Yes | Implemented |
-| `slog.Info()` | Yes | Yes | Implemented |
-| `slog.Warn()` | Yes | Yes | Implemented |
-| `slog.Error()` | Yes | Yes | Implemented |
-| `slog.New()` | Yes | Yes | Implemented |
-| `slog.Default()` | Yes | Yes | Implemented |
-| `slog.SetDefault()` | Yes | Yes | Implemented |
-| `slog.With()` | Yes | Yes | Implemented |
-| `slog.WithGroup()` | Yes | Yes | Implemented |
-| `slog.TextHandler` | Yes | Yes | Implemented |
-| `slog.JSONHandler` | Yes | Yes | Implemented |
-| `slog.Level` | Yes | Yes | Implemented |
-| `slog.LevelVar` | Yes | Yes | Implemented |
-| `Handler` interface | Yes | Yes | Implemented |
-| `ReplaceAttr` | Yes | Yes | Implemented |
+| `slog.Debug()` | Yes | Yes | ✅ Implemented + Variadic |
+| `slog.Info()` | Yes | Yes | ✅ Implemented + Variadic |
+| `slog.Warn()` | Yes | Yes | ✅ Implemented + Variadic |
+| `slog.Error()` | Yes | Yes | ✅ Implemented + Variadic |
+| `slog.New()` | Yes | Yes | ✅ Implemented |
+| `slog.Default()` | Yes | Yes | ✅ Implemented |
+| `slog.SetDefault()` | Yes | Yes | ✅ Implemented |
+| `slog.With()` | Yes | Yes | ✅ Implemented + Variadic |
+| `slog.WithGroup()` | Yes | Yes | ✅ Implemented |
+| `slog.TextHandler` | Yes | Yes | ✅ Implemented |
+| `slog.JSONHandler` | Yes | Yes | ✅ Implemented |
+| `slog.Level` | Yes | Yes | ✅ Implemented |
+| `slog.LevelVar` | Yes | Yes | ✅ Implemented |
+| `Handler` interface | Yes | Yes | ✅ Implemented |
+| `ReplaceAttr` | Yes | Yes | ✅ Implemented |
+
+### Variadic Parameters (NEW in v1.7.0)
+
+jslog now matches Go slog's API **exactly**:
+
+**Go:**
+```go
+slog.Info("User login", "user", "alice", "attempts", 3)
+```
+
+**jslog:**
+```typescript
+info("User login", "user", "alice", "attempts", 3);
+```
+
+**Identical syntax!** Plus you still have the option for typed helpers when needed.
 
 ## Features jslog Has That Go slog Doesn't
 

@@ -56,13 +56,19 @@ npm install @omdxp/jslog
 ```typescript
 import { info, warn, error, String, Int } from '@omdxp/jslog';
 
-// Simple logging
+// Go slog-style variadic parameters (NEW in v1.7.0!)
+info('Application started', 'env', 'production', 'port', 3000);
+warn('High memory usage', 'percentage', 85);
+error('Failed to connect', 'host', 'localhost');
+
+// Traditional style (still works)
 info('Application started', String('env', 'production'), Int('port', 3000));
-warn('High memory usage', Int('percentage', 85));
-error('Failed to connect', String('host', 'localhost'));
 ```
 
 ## Why Choose jslog?
+
+### Go slog Compatibility + Variadic Parameters
+Full API compatibility with Go's log/slog, now with variadic parameters! Use either Go-style key-value pairs OR typed attribute helpers - your choice.
 
 ### High Performance
 Ranks #1 in simple logging benchmarks with 488,193 ops/sec, outperforming pino while maintaining zero dependencies. Average rank 1.7-2.0 across all benchmark categories.

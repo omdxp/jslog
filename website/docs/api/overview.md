@@ -6,6 +6,15 @@ sidebar_position: 1
 
 Complete API reference for jslog.
 
+:::tip NEW in v1.7.0 - Variadic Parameters
+jslog now supports **Go slog-style variadic parameters**! All logging methods accept both:
+- **Go style**: `logger.info('msg', 'key', 'value', 'key2', 'value2')`
+- **Traditional**: `logger.info('msg', String('key', 'value'), Int('key2', 42))`
+- **Mixed**: Combine both in the same call!
+
+This applies to: `log()`, `debug()`, `info()`, `warn()`, `error()`, `with()`, `withGroup()`, and all convenience functions.
+:::
+
 ## Quick Reference
 
 ### Core Exports
