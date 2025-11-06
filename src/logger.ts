@@ -106,6 +106,37 @@ export interface Attr {
 }
 
 /**
+ * Converts variadic arguments to Attr array.
+ * Supports both Attr objects and alternating key-value pairs (like Go slog).
+ *
+ * @param args - Either Attr objects or alternating string keys and values
+ * @returns Array of Attr objects
+ *
+ * @internal
+ */
+function argsToAttrs(args: any[]): Attr[] {
+  const attrs: Attr[] = [];
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+
+    // If it's already an Attr object (has key and value properties)
+    if (arg && typeof arg === "object" && "key" in arg && "value" in arg) {
+      attrs.push(arg as Attr);
+    }
+    // If it's a string key followed by a value (Go slog style)
+    else if (typeof arg === "string" && i + 1 < args.length) {
+      const key = arg;
+      const value = args[++i]; // Consume next arg as value
+      attrs.push({ key, value });
+    }
+    // Skip invalid args
+  }
+
+  return attrs;
+}
+
+/**
  * Creates a string attribute.
  *
  * @param key - The attribute key
@@ -520,20 +551,24 @@ export class Logger {
   /**
    * Logs a message at the specified level with attributes.
    *
-   * This is the primary logging method. Use convenience methods (info, error, etc.)
-   * for cleaner code in most cases.
+   * Supports both explicit Attr objects and Go slog-style key-value pairs.
    *
    * @param level - The log level
    * @param msg - The log message
-   * @param attrs - Additional attributes to include
+   * @param attrs - Attr objects or alternating key-value pairs
    *
-   * @example
+   * @example Using Attr helpers
    * ```typescript
-   * logger.log(Level.INFO, "Operation complete", Duration("elapsed", 150));
+   * logger.log(Level.INFO, "User login", String("user", "alice"), Int("attempts", 3));
+   * ```
+   *
+   * @example Using key-value pairs (Go slog style)
+   * ```typescript
+   * logger.log(Level.INFO, "User login", "user", "alice", "attempts", 3);
    * ```
    */
-  log(level: Level, msg: string, ...attrs: Attr[]): void {
-    this.logAttrs(level, msg, ...attrs);
+  log(level: Level, msg: string, ...attrs: any[]): void {
+    this.logAttrs(level, msg, ...argsToAttrs(attrs));
   }
 
   /**
@@ -572,17 +607,22 @@ export class Logger {
   /**
    * Logs a message at DEBUG level.
    *
-   * Debug messages provide detailed diagnostic information useful during development.
+   * Supports both explicit Attr objects and Go slog-style key-value pairs.
    *
    * @param msg - The log message
-   * @param attrs - Additional attributes
+   * @param attrs - Attr objects or alternating key-value pairs
    *
-   * @example
+   * @example Using Attr helpers
    * ```typescript
    * logger.debug("Cache miss", String("key", "user:123"));
    * ```
+   *
+   * @example Using key-value pairs (Go slog style)
+   * ```typescript
+   * logger.debug("Cache miss", "key", "user:123", "ttl", 3600);
+   * ```
    */
-  debug(msg: string, ...attrs: Attr[]): void {
+  debug(msg: string, ...attrs: any[]): void {
     this.log(Level.DEBUG, msg, ...attrs);
   }
 
@@ -591,26 +631,31 @@ export class Logger {
    *
    * @param msg - The log message
    * @param ctx - The log context containing additional attributes
-   * @param attrs - Additional attributes
+   * @param attrs - Attr objects or alternating key-value pairs
    */
-  debugContext(msg: string, ctx: LogContext, ...attrs: Attr[]): void {
+  debugContext(msg: string, ctx: LogContext, ...attrs: any[]): void {
     this.debug(msg, ...ctx.toAttrs(), ...attrs);
   }
 
   /**
    * Logs a message at INFO level.
    *
-   * Info messages describe normal application behavior and milestones.
+   * Supports both explicit Attr objects and Go slog-style key-value pairs.
    *
    * @param msg - The log message
-   * @param attrs - Additional attributes
+   * @param attrs - Attr objects or alternating key-value pairs
    *
-   * @example
+   * @example Using Attr helpers
    * ```typescript
    * logger.info("Server started", Int("port", 3000), String("env", "production"));
    * ```
+   *
+   * @example Using key-value pairs (Go slog style)
+   * ```typescript
+   * logger.info("Server started", "port", 3000, "env", "production");
+   * ```
    */
-  info(msg: string, ...attrs: Attr[]): void {
+  info(msg: string, ...attrs: any[]): void {
     this.log(Level.INFO, msg, ...attrs);
   }
 
@@ -619,26 +664,31 @@ export class Logger {
    *
    * @param msg - The log message
    * @param ctx - The log context containing additional attributes
-   * @param attrs - Additional attributes
+   * @param attrs - Attr objects or alternating key-value pairs
    */
-  infoContext(msg: string, ctx: LogContext, ...attrs: Attr[]): void {
+  infoContext(msg: string, ctx: LogContext, ...attrs: any[]): void {
     this.info(msg, ...ctx.toAttrs(), ...attrs);
   }
 
   /**
    * Logs a message at WARN level.
    *
-   * Warning messages indicate potentially harmful situations.
+   * Supports both explicit Attr objects and Go slog-style key-value pairs.
    *
    * @param msg - The log message
-   * @param attrs - Additional attributes
+   * @param attrs - Attr objects or alternating key-value pairs
    *
-   * @example
+   * @example Using Attr helpers
    * ```typescript
    * logger.warn("High memory usage", Float64("usage", 0.85));
    * ```
+   *
+   * @example Using key-value pairs (Go slog style)
+   * ```typescript
+   * logger.warn("High memory usage", "usage", 0.85, "threshold", 0.8);
+   * ```
    */
-  warn(msg: string, ...attrs: Attr[]): void {
+  warn(msg: string, ...attrs: any[]): void {
     this.log(Level.WARN, msg, ...attrs);
   }
 
@@ -647,26 +697,31 @@ export class Logger {
    *
    * @param msg - The log message
    * @param ctx - The log context containing additional attributes
-   * @param attrs - Additional attributes
+   * @param attrs - Attr objects or alternating key-value pairs
    */
-  warnContext(msg: string, ctx: LogContext, ...attrs: Attr[]): void {
+  warnContext(msg: string, ctx: LogContext, ...attrs: any[]): void {
     this.warn(msg, ...ctx.toAttrs(), ...attrs);
   }
 
   /**
    * Logs a message at ERROR level.
    *
-   * Error messages indicate failure conditions that need attention.
+   * Supports both explicit Attr objects and Go slog-style key-value pairs.
    *
    * @param msg - The log message
-   * @param attrs - Additional attributes
+   * @param attrs - Attr objects or alternating key-value pairs
    *
-   * @example
+   * @example Using Attr helpers
    * ```typescript
    * logger.error("Database connection failed", Err(error), String("host", "db.example.com"));
    * ```
+   *
+   * @example Using key-value pairs (Go slog style)
+   * ```typescript
+   * logger.error("Database connection failed", "host", "db.example.com", "port", 5432);
+   * ```
    */
-  error(msg: string, ...attrs: Attr[]): void {
+  error(msg: string, ...attrs: any[]): void {
     this.log(Level.ERROR, msg, ...attrs);
   }
 
@@ -675,9 +730,9 @@ export class Logger {
    *
    * @param msg - The log message
    * @param ctx - The log context containing additional attributes
-   * @param attrs - Additional attributes
+   * @param attrs - Attr objects or alternating key-value pairs
    */
-  errorContext(msg: string, ctx: LogContext, ...attrs: Attr[]): void {
+  errorContext(msg: string, ctx: LogContext, ...attrs: any[]): void {
     this.error(msg, ...ctx.toAttrs(), ...attrs);
   }
 

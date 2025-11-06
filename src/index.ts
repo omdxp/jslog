@@ -235,17 +235,24 @@ export function New(handler: Handler): Logger {
 /**
  * Log a message at DEBUG level using the default logger.
  *
- * @param msg - The log message
- * @param attrs - Optional attributes to include
+ * Supports both explicit Attr objects and Go slog-style key-value pairs.
  *
- * @example
+ * @param msg - The log message
+ * @param attrs - Attr objects or alternating key-value pairs
+ *
+ * @example Using Attr helpers
  * ```typescript
  * import { debug, String, Int } from '@omdxp/jslog';
  *
  * debug('Processing request', String('path', '/api/users'), Int('count', 42));
  * ```
+ *
+ * @example Using key-value pairs (Go slog style)
+ * ```typescript
+ * debug('Processing request', 'path', '/api/users', 'count', 42);
+ * ```
  */
-export function debug(msg: string, ...attrs: Attr[]): void {
+export function debug(msg: string, ...attrs: any[]): void {
   Default().debug(msg, ...attrs);
 }
 
@@ -254,7 +261,7 @@ export function debug(msg: string, ...attrs: Attr[]): void {
  *
  * @param msg - The log message
  * @param ctx - The log context (for correlation IDs, trace IDs, etc.)
- * @param attrs - Optional attributes to include
+ * @param attrs - Attr objects or alternating key-value pairs
  *
  * @example
  * ```typescript
@@ -267,7 +274,7 @@ export function debug(msg: string, ...attrs: Attr[]): void {
 export function debugContext(
   msg: string,
   ctx: LogContext,
-  ...attrs: Attr[]
+  ...attrs: any[]
 ): void {
   Default().debugContext(msg, ctx, ...attrs);
 }
@@ -275,17 +282,24 @@ export function debugContext(
 /**
  * Log a message at INFO level using the default logger.
  *
- * @param msg - The log message
- * @param attrs - Optional attributes to include
+ * Supports both explicit Attr objects and Go slog-style key-value pairs.
  *
- * @example
+ * @param msg - The log message
+ * @param attrs - Attr objects or alternating key-value pairs
+ *
+ * @example Using Attr helpers
  * ```typescript
  * import { info, String, Int } from '@omdxp/jslog';
  *
  * info('Server started', String('env', 'production'), Int('port', 3000));
  * ```
+ *
+ * @example Using key-value pairs (Go slog style)
+ * ```typescript
+ * info('Server started', 'env', 'production', 'port', 3000);
+ * ```
  */
-export function info(msg: string, ...attrs: Attr[]): void {
+export function info(msg: string, ...attrs: any[]): void {
   Default().info(msg, ...attrs);
 }
 
@@ -294,7 +308,7 @@ export function info(msg: string, ...attrs: Attr[]): void {
  *
  * @param msg - The log message
  * @param ctx - The log context (for correlation IDs, trace IDs, etc.)
- * @param attrs - Optional attributes to include
+ * @param attrs - Attr objects or alternating key-value pairs
  *
  * @example
  * ```typescript
@@ -307,7 +321,7 @@ export function info(msg: string, ...attrs: Attr[]): void {
 export function infoContext(
   msg: string,
   ctx: LogContext,
-  ...attrs: Attr[]
+  ...attrs: any[]
 ): void {
   Default().infoContext(msg, ctx, ...attrs);
 }
@@ -315,17 +329,24 @@ export function infoContext(
 /**
  * Log a message at WARN level using the default logger.
  *
- * @param msg - The log message
- * @param attrs - Optional attributes to include
+ * Supports both explicit Attr objects and Go slog-style key-value pairs.
  *
- * @example
+ * @param msg - The log message
+ * @param attrs - Attr objects or alternating key-value pairs
+ *
+ * @example Using Attr helpers
  * ```typescript
  * import { warn, Int, String } from '@omdxp/jslog';
  *
  * warn('High memory usage', Int('percentage', 85), String('action', 'monitor'));
  * ```
+ *
+ * @example Using key-value pairs (Go slog style)
+ * ```typescript
+ * warn('High memory usage', 'percentage', 85, 'action', 'monitor');
+ * ```
  */
-export function warn(msg: string, ...attrs: Attr[]): void {
+export function warn(msg: string, ...attrs: any[]): void {
   Default().warn(msg, ...attrs);
 }
 
@@ -334,7 +355,7 @@ export function warn(msg: string, ...attrs: Attr[]): void {
  *
  * @param msg - The log message
  * @param ctx - The log context (for correlation IDs, trace IDs, etc.)
- * @param attrs - Optional attributes to include
+ * @param attrs - Attr objects or alternating key-value pairs
  *
  * @example
  * ```typescript
@@ -347,7 +368,7 @@ export function warn(msg: string, ...attrs: Attr[]): void {
 export function warnContext(
   msg: string,
   ctx: LogContext,
-  ...attrs: Attr[]
+  ...attrs: any[]
 ): void {
   Default().warnContext(msg, ctx, ...attrs);
 }
@@ -355,10 +376,12 @@ export function warnContext(
 /**
  * Log a message at ERROR level using the default logger.
  *
- * @param msg - The log message
- * @param attrs - Optional attributes to include
+ * Supports both explicit Attr objects and Go slog-style key-value pairs.
  *
- * @example
+ * @param msg - The log message
+ * @param attrs - Attr objects or alternating key-value pairs
+ *
+ * @example Using Attr helpers
  * ```typescript
  * import { error, String, Err } from '@omdxp/jslog';
  *
@@ -368,8 +391,13 @@ export function warnContext(
  *   error('Operation failed', String('operation', 'db-query'), Err(err as Error));
  * }
  * ```
+ *
+ * @example Using key-value pairs (Go slog style)
+ * ```typescript
+ * error('Operation failed', 'operation', 'db-query', 'attempts', 3);
+ * ```
  */
-export function error(msg: string, ...attrs: Attr[]): void {
+export function error(msg: string, ...attrs: any[]): void {
   Default().error(msg, ...attrs);
 }
 
@@ -378,7 +406,7 @@ export function error(msg: string, ...attrs: Attr[]): void {
  *
  * @param msg - The log message
  * @param ctx - The log context (for correlation IDs, trace IDs, etc.)
- * @param attrs - Optional attributes to include
+ * @param attrs - Attr objects or alternating key-value pairs
  *
  * @example
  * ```typescript
@@ -391,7 +419,7 @@ export function error(msg: string, ...attrs: Attr[]): void {
 export function errorContext(
   msg: string,
   ctx: LogContext,
-  ...attrs: Attr[]
+  ...attrs: any[]
 ): void {
   Default().errorContext(msg, ctx, ...attrs);
 }
@@ -399,19 +427,26 @@ export function errorContext(
 /**
  * Log a message at the specified level using the default logger.
  *
+ * Supports both explicit Attr objects and Go slog-style key-value pairs.
+ *
  * @param level - The log level (DEBUG, INFO, WARN, or ERROR)
  * @param msg - The log message
- * @param attrs - Optional attributes to include
+ * @param attrs - Attr objects or alternating key-value pairs
  *
- * @example
+ * @example Using Attr helpers
  * ```typescript
  * import { log, Level, String } from '@omdxp/jslog';
  *
  * const severity = Level.WARN;
  * log(severity, 'Dynamic level logging', String('source', 'api'));
  * ```
+ *
+ * @example Using key-value pairs (Go slog style)
+ * ```typescript
+ * log(Level.INFO, 'Dynamic level logging', 'source', 'api', 'version', '1.0');
+ * ```
  */
-export function log(level: Level, msg: string, ...attrs: Attr[]): void {
+export function log(level: Level, msg: string, ...attrs: any[]): void {
   Default().log(level, msg, ...attrs);
 }
 
@@ -419,10 +454,11 @@ export function log(level: Level, msg: string, ...attrs: Attr[]): void {
  * Log a message at the specified level with pre-allocated attributes.
  *
  * More efficient than log() when you have attributes already in array form.
+ * Note: This function expects actual Attr objects, not key-value pairs.
  *
  * @param level - The log level (DEBUG, INFO, WARN, or ERROR)
  * @param msg - The log message
- * @param attrs - Optional attributes to include
+ * @param attrs - Pre-constructed Attr objects
  *
  * @example
  * ```typescript
