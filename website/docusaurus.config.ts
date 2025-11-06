@@ -60,7 +60,7 @@ const config: Config = {
               label: "Next",
               path: "next",
             },
-            "1.6.0": {
+            "1.7.0": {
               label: `${latestVersion} (latest)`,
               path: "/",
             },
@@ -95,6 +95,10 @@ const config: Config = {
             "1.5.1": {
               label: "1.5.1",
               path: "1.5.1",
+            },
+            "1.6.0": {
+              label: "1.6.0",
+              path: "1.6.0",
             },
           },
         },
