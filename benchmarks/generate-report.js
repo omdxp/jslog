@@ -224,26 +224,31 @@ const parsePinoResults = (output) => {
   const lines = output.split("\n");
 
   for (const line of lines) {
-    // Match pattern like "benchJslogJSON*10000: 181.474ms"
-    const match = line.match(/^bench(\w+)\*\d+:\s+([\d.]+)ms/);
+    // Match pattern like "benchJslogJSON*10000: 181.474ms" or "benchBunyan*10000: 1.131s"
+    const matchMs = line.match(/^bench(\w+)\*\d+:\s+([\d.]+)ms/);
+    const matchS = line.match(/^bench(\w+)\*\d+:\s+([\d.]+)s$/);
+
+    const match = matchMs || matchS;
     if (match) {
       const [, name, timeStr] = match;
-      const time = parseFloat(timeStr);
+      let time = parseFloat(timeStr);
+      // Convert seconds to milliseconds
+      if (matchS) time = time * 1000;
 
       // Map benchmark names to friendly library names
       let library = name;
-      if (name.startsWith("Jslog")) library = "jslog";
+      if (name.includes("Jslog")) library = "jslog";
       else if (
-        name.startsWith("Pino") &&
+        name.includes("Pino") &&
         !name.includes("MinLength") &&
         !name.includes("NodeStream")
       )
         library = "pino";
-      else if (name.startsWith("Bunyan")) library = "bunyan";
-      else if (name.startsWith("Winston")) library = "winston";
+      else if (name.includes("Bunyan")) library = "bunyan";
+      else if (name.includes("Winston")) library = "winston";
       else continue; // Skip MinLength, NodeStream variants
 
-      results.push({ library, time });
+      results.push({ library, time, name });
     }
   }
 
