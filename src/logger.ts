@@ -137,6 +137,22 @@ function argsToAttrs(args: any[]): Attr[] {
 }
 
 /**
+ * Generic attribute constructor.
+ * Creates an attribute with the given key and value.
+ *
+ * @param key - The attribute key
+ * @param value - The attribute value (any type)
+ * @returns An Attr object
+ *
+ * @example
+ * ```typescript
+ * const customAttr = attr('custom_key', 'custom_value');
+ * logger.info('Message', customAttr);
+ * ```
+ */
+export const attr = (key: string, value: Value): Attr => ({ key, value });
+
+/**
  * Creates a string attribute.
  *
  * @param key - The attribute key

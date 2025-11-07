@@ -130,6 +130,7 @@ export {
 
 // Attribute helpers
 export {
+  attr,
   String,
   Int,
   Int64,
