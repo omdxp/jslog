@@ -360,9 +360,10 @@ export interface Source {
  * Captures source location information from the current call stack.
  *
  * Parses the JavaScript stack trace to extract file, line, and function information.
+ * Automatically skips internal jslog frames to show the user's actual call site.
  * This is an expensive operation and should only be called when needed.
  *
- * @param skipFrames - Number of stack frames to skip (default: 0)
+ * @param skipFrames - Number of additional stack frames to skip after finding user code (default: 0)
  * @returns Source information or undefined if parsing fails
  *
  * @internal
@@ -371,25 +372,72 @@ export function getSource(skipFrames: number = 0): Source | undefined {
   try {
     const err = new globalThis.Error();
     const stack = err.stack?.split("\n") || [];
+    let startIndex = 2;
 
-    // Skip Error line, getSource line, and caller frames
-    const frameIndex = 2 + skipFrames;
+    let userFrameIndex = -1;
+    for (let i = startIndex; i < stack.length; i++) {
+      const frame = stack[i];
 
+      const isJslogInternal =
+        frame.includes("@omdxp/jslog/dist/") ||
+        frame.includes("@omdxp\\jslog\\dist\\") ||
+        frame.includes("/jslog/dist/index.") ||
+        frame.includes("\\jslog\\dist\\index.") ||
+        (frame.includes("/jslog/") &&
+          (frame.includes("/src/logger.ts") ||
+            frame.includes("/src/handlers.ts") ||
+            frame.includes("/src/advanced-handlers.ts") ||
+            frame.includes("/src/middleware.ts") ||
+            frame.includes("/src/utils.ts") ||
+            frame.includes("/src/index.ts"))) ||
+        (frame.includes("\\jslog\\") &&
+          (frame.includes("\\src\\logger.ts") ||
+            frame.includes("\\src\\handlers.ts") ||
+            frame.includes("\\src\\advanced-handlers.ts") ||
+            frame.includes("\\src\\middleware.ts") ||
+            frame.includes("\\src\\utils.ts") ||
+            frame.includes("\\src\\index.ts"))) ||
+        frame.includes("node:internal/") ||
+        frame.includes("(node:internal/") ||
+        frame.includes("/tsx/") ||
+        frame.includes("\\tsx\\") ||
+        frame.includes("/ts-node/") ||
+        frame.includes("\\ts-node\\");
+
+      if (isJslogInternal) {
+        continue;
+      }
+
+      userFrameIndex = i;
+      break;
+    }
+
+    if (userFrameIndex === -1) {
+      return undefined;
+    }
+
+    const frameIndex = userFrameIndex;
     if (frameIndex >= stack.length) {
       return undefined;
     }
 
     const frame = stack[frameIndex];
-
-    // Parse stack frame (format varies by environment)
-    // Example: "    at functionName (file.ts:line:col)"
-    // or: "    at file.ts:line:col"
     const match = frame.match(/at\s+(?:(.+?)\s+\()?(.+?):(\d+):\d+\)?/);
 
     if (match) {
       const functionName = match[1]?.trim();
-      const file = match[2]?.trim();
+      let file = match[2]?.trim();
       const line = parseInt(match[3], 10);
+
+      if (file) {
+        file = file.replace(/^file:\/\//, "");
+        try {
+          const cwd = process.cwd();
+          if (file.startsWith(cwd)) {
+            file = file.slice(cwd.length + 1);
+          }
+        } catch {}
+      }
 
       return {
         function: functionName || undefined,
@@ -611,10 +659,8 @@ export class Logger {
       attrs,
     };
 
-    // Only capture source if handler explicitly needs it (expensive operation)
-    // Check if handler implements needsSource() and returns true
     if (this.handler.needsSource?.()) {
-      record.source = getSource(3); // Skip getSource + log + info/warn/error = get to actual caller
+      record.source = getSource();
     }
 
     this.handler.handle(record);
