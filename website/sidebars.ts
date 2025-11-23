@@ -27,6 +27,7 @@ const sidebars: SidebarsConfig = {
       type: "category",
       label: "Advanced Features",
       items: [
+        "advanced/source-location",
         "advanced/file-handler",
         "advanced/color-handler",
         "advanced/pretty-handler",

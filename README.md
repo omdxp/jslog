@@ -33,6 +33,7 @@ See full comparison in [SUPERIORITY.md](./SUPERIORITY.md)
 - **Dynamic Levels**: Change log levels at runtime with LevelVar
 
 ### Advanced Features (Go slog can't do this!)
+- **Source Location Tracking**: Automatic file/line tracking with zero dependencies
 - **ColorHandler**: Beautiful, colorful console output
 - **PrettyHandler**: Format nested objects with proper indentation
 - **FileHandler**: Write to files with automatic rotation
@@ -234,6 +235,60 @@ import { DiscardHandler } from '@omdxp/jslog';
 const logger = new Logger(new DiscardHandler());
 logger.info('This will be discarded'); // No output
 ```
+
+### Source Location Tracking
+
+Track where log messages originate in your code with zero runtime dependencies:
+
+```typescript
+import { Logger, TextHandler, JSONHandler, Level, String } from '@omdxp/jslog';
+
+// Enable source tracking with addSource option
+const logger = new Logger(new TextHandler({ 
+  level: Level.INFO, 
+  addSource: true 
+}));
+
+logger.info('User action', String('action', 'login'));
+// Output: time=... level=INFO source=app.ts:8 msg="User action" action="login"
+
+// Works with JSON output too
+const jsonLogger = new Logger(new JSONHandler({ addSource: true }));
+jsonLogger.warn('High memory', String('usage', '85%'));
+// Output: {"time":"...","level":"WARN","source":{"function":"checkMemory","file":"app.ts","line":15},...}
+
+// Source tracking in nested functions
+function processOrder(orderId: number) {
+  logger.info('Processing order', String('id', orderId));
+  // Shows the actual line where this log call is made
+}
+
+// Works in class methods too
+class UserService {
+  private logger = new Logger(new JSONHandler({ addSource: true }));
+  
+  createUser(name: string) {
+    this.logger.info('Creating user', String('name', name));
+    // Source shows: UserService.createUser at line X
+  }
+}
+```
+
+**Features:**
+- **Zero Dependencies**: No runtime dependencies, pure stack trace parsing
+- **TypeScript Support**: Shows `.ts` files during development with tsx/ts-node
+- **Production Ready**: Shows compiled `.js` files in production
+- **Smart Filtering**: Automatically skips jslog internal frames to show your code
+- **Function Names**: Captures function/method names when available
+- **Relative Paths**: Shows paths relative to cwd for cleaner output
+
+**When to use:**
+- Development and debugging
+- Troubleshooting production issues
+- Audit logging where source location matters
+- Understanding code flow in complex applications
+
+**Note:** Source tracking adds minimal overhead (one stack trace capture per log call). Only enable it when needed using the `addSource` handler option.
 
 ## API Reference
 
