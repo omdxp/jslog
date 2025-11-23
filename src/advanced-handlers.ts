@@ -41,7 +41,7 @@ export interface FileHandlerOptions {
  * logger.info("Event logged to file");
  *
  * // Don't forget to close on shutdown
- * await handler.close();
+ * handler.close();
  * ```
  */
 export class FileHandler implements Handler {

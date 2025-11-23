@@ -376,19 +376,27 @@ const fileHandler = new FileHandler({ filepath: './logs/app.log' });
 const logger = New(fileHandler);
 
 // On shutdown
+process.on('SIGTERM', () => {
+  // FileHandler.close() is synchronous
+  fileHandler.close();
+  process.exit(0);
+});
+
+// For async handlers (BufferedHandler, AsyncHandler, etc.)
+const asyncHandler = new AsyncHandler({ handler: new JSONHandler() });
 process.on('SIGTERM', async () => {
-  // Close file stream, flush buffers, wait for async operations
-  await fileHandler.close();
+  // These handlers need await
+  await asyncHandler.close();
   process.exit(0);
 });
 ```
 
 Handlers that need closing:
-- `FileHandler` - Closes file stream
-- `BufferedHandler` - Flushes buffer and clears timer
-- `AsyncHandler` - Waits for pending operations
-- `MultiHandler` - Cascades close to all wrapped handlers
-- `MiddlewareHandler` - Delegates close to wrapped handler
+- `FileHandler` - Closes file stream (sync: `fileHandler.close()`)
+- `BufferedHandler` - Flushes buffer and clears timer (async: `await handler.close()`)
+- `AsyncHandler` - Waits for pending operations (async: `await handler.close()`)
+- `MultiHandler` - Cascades close to all wrapped handlers (async: `await handler.close()`)
+- `MiddlewareHandler` - Delegates close to wrapped handler (async: `await handler.close()`)
 
 ## Comparison with Go's log/slog
 

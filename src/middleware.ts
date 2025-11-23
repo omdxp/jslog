@@ -272,7 +272,10 @@ export class MiddlewareHandler implements Handler {
  */
 
 /**
- * Add timestamp with custom format
+ * Add timestamp with custom format.
+ *
+ * @param format - Optional function to format the timestamp (default: ISO string)
+ * @returns A middleware function that adds a formatted timestamp
  */
 export function timestampMiddleware(
   format?: (date: Date) => string
@@ -287,7 +290,9 @@ export function timestampMiddleware(
 }
 
 /**
- * Add hostname to all logs
+ * Add hostname to all logs.
+ *
+ * @returns A middleware function that adds the hostname attribute
  */
 export function hostnameMiddleware(): HandlerMiddleware {
   const hostname =
@@ -302,7 +307,9 @@ export function hostnameMiddleware(): HandlerMiddleware {
 }
 
 /**
- * Add PID to all logs
+ * Add process ID to all logs.
+ *
+ * @returns A middleware function that adds the pid attribute
  */
 export function pidMiddleware(): HandlerMiddleware {
   return (record, next) => {
@@ -314,7 +321,10 @@ export function pidMiddleware(): HandlerMiddleware {
 }
 
 /**
- * Rate limiting middleware
+ * Rate limiting middleware to prevent log flooding.
+ *
+ * @param maxPerSecond - Maximum number of logs allowed per second
+ * @returns A middleware function that rate limits log output
  */
 export function rateLimitMiddleware(maxPerSecond: number): HandlerMiddleware {
   let count = 0;
@@ -336,7 +346,10 @@ export function rateLimitMiddleware(maxPerSecond: number): HandlerMiddleware {
 }
 
 /**
- * Deduplication middleware (prevent spam!)
+ * Deduplication middleware to prevent log spam.
+ *
+ * @param windowMs - Time window in milliseconds to detect duplicates (default: 1000)
+ * @returns A middleware function that deduplicates logs
  */
 export function dedupeMiddleware(windowMs: number = 1000): HandlerMiddleware {
   const seen = new Map<string, number>();
@@ -363,7 +376,10 @@ export function dedupeMiddleware(windowMs: number = 1000): HandlerMiddleware {
 }
 
 /**
- * Enrichment middleware - add custom data to all logs
+ * Enrichment middleware to add custom data to all logs.
+ *
+ * @param enrich - Function that returns additional attributes for each log record
+ * @returns A middleware function that enriches logs with custom attributes
  */
 export function enrichMiddleware(
   enrich: (record: Record) => Attr[]
@@ -378,7 +394,10 @@ export function enrichMiddleware(
 }
 
 /**
- * Transform middleware - modify the record
+ * Transform middleware to modify log records.
+ *
+ * @param transform - Function that transforms the log record
+ * @returns A middleware function that transforms log records
  */
 export function transformMiddleware(
   transform: (record: Record) => Record
@@ -389,7 +408,11 @@ export function transformMiddleware(
 }
 
 /**
- * Conditional middleware - only apply to certain logs
+ * Conditional middleware to selectively apply middleware.
+ *
+ * @param condition - Function that determines if middleware should be applied
+ * @param middleware - The middleware to apply when condition is true
+ * @returns A middleware function that conditionally applies another middleware
  */
 export function conditionalMiddleware(
   condition: (record: Record) => boolean,
@@ -405,7 +428,10 @@ export function conditionalMiddleware(
 }
 
 /**
- * Error boundary middleware - catch errors in downstream handlers
+ * Error boundary middleware to catch errors in downstream handlers.
+ *
+ * @param onError - Optional callback for handling errors (default: logs to console.error)
+ * @returns A middleware function that wraps handlers in error handling
  */
 export function errorBoundaryMiddleware(
   onError?: (error: Error, record: Record) => void
