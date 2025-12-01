@@ -76,6 +76,8 @@ export {
   type FilterHandlerOptions,
   type ColorHandlerOptions,
   type PrettyHandlerOptions,
+  RingBufferHandler,
+  type RingBufferHandlerOptions,
 } from "./advanced-handlers";
 
 // Async & Middleware support (composition FTW!)

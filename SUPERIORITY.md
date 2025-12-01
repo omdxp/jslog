@@ -99,16 +99,29 @@ const logger = New(new SamplingHandler({
 ### 6. FilterHandler
 Advanced filtering logic beyond basic level-based filtering.
 
+### 7. Ring Buffer Handler (Flight Recorder)
+Keep a history of recent logs in memory and flush them only when needed (e.g., on error). This is useful for capturing context leading up to a crash without logging everything to disk/network during normal operation.
+
 ```typescript
-const logger = New(new FilterHandler({
-  handler: new ColorHandler(),
-  filter: (record) => record.level >= Level.ERROR || record.message.includes('critical')
-}));
+import { Logger, RingBufferHandler, TextHandler } from '@omdxp/jslog';
+
+// Keep last 1000 logs in memory
+const ring = new RingBufferHandler({ limit: 1000 });
+const logger = new Logger(ring);
+
+logger.info('Step 1');
+logger.info('Step 2');
+
+// Later, if an error occurs, flush the history to disk or console
+if (somethingWentWrong) {
+  console.error("Dumping log history:");
+  ring.flush(new TextHandler());
+}
 ```
 
-**Go slog equivalent**: Requires custom handler wrapper.
+**Go slog equivalent**: No built-in support for in-memory ring buffers or flight recorder patterns.
 
-### 7. AsyncHandler
+### 8. AsyncHandler
 Non-blocking log operations with internal buffering and error handling.
 
 ```typescript
@@ -120,7 +133,7 @@ const logger = New(new AsyncHandler({
 
 **Go slog equivalent**: While Go has goroutines, explicit async handler patterns require manual implementation.
 
-### 8. Middleware Pattern
+### 9. Middleware Pattern
 Composable handler middleware for cross-cutting logging concerns.
 
 ```typescript
@@ -137,7 +150,7 @@ const logger = New(new MiddlewareHandler({
 
 **Go slog equivalent**: Handler wrapping pattern must be manually implemented.
 
-### 9. MetricsMiddleware
+### 10. MetricsMiddleware
 Built-in logging statistics and metrics collection.
 
 ```typescript
@@ -154,7 +167,7 @@ console.log(metrics.getStats());
 
 **Go slog equivalent**: Manual metrics tracking implementation required.
 
-### 10. Deduplication Middleware
+### 11. Deduplication Middleware
 Automatic detection and suppression of duplicate log entries within a time window.
 
 ```typescript
@@ -168,7 +181,7 @@ logger.info("Same message"); // Automatically suppressed
 
 **Go slog equivalent**: Custom deduplication logic needed.
 
-### 11. Rate Limiting Middleware
+### 12. Rate Limiting Middleware
 Built-in rate limiting to prevent log flooding.
 
 ```typescript
@@ -180,7 +193,7 @@ const logger = New(new MiddlewareHandler({
 
 **Go slog equivalent**: External rate limiting library or manual implementation.
 
-### 12. Fluent Attribute Builder
+### 13. Fluent Attribute Builder
 Chainable API for constructing complex attribute sets.
 
 ```typescript
@@ -197,7 +210,7 @@ logger.info("User event",
 
 **Go slog equivalent**: Standard attribute construction only.
 
-### 13. Performance Timers
+### 14. Performance Timers
 Integrated timing utilities for performance measurement.
 
 ```typescript
@@ -209,7 +222,7 @@ logger.info("Query complete", timer.elapsed());
 
 **Go slog equivalent**: Manual `time.Now()` usage and calculation.
 
-### 14. Correlation ID Tracking
+### 15. Correlation ID Tracking
 Global correlation ID management for distributed tracing.
 
 ```typescript
@@ -221,7 +234,7 @@ logger.info("Request 2", CorrelationId());
 
 **Go slog equivalent**: Manual context propagation required.
 
-### 15. HTTP Request/Response Helpers
+### 16. HTTP Request/Response Helpers
 Pre-built attribute helpers for web application logging.
 
 ```typescript
@@ -240,7 +253,7 @@ logger.info("Response", ...HttpRes({
 
 **Go slog equivalent**: Manual attribute construction for each field.
 
-### 16. System Information Helpers
+### 17. System Information Helpers
 Built-in helpers for environment and resource usage logging.
 
 ```typescript
@@ -253,7 +266,7 @@ logger.warn("High memory", ...MemoryUsage());
 
 **Go slog equivalent**: Manual extraction from `runtime` package.
 
-### 17. Data Masking Utilities
+### 18. Data Masking Utilities
 Built-in PII redaction for sensitive data.
 
 ```typescript
@@ -265,7 +278,7 @@ logger.info("User signup",
 
 **Go slog equivalent**: Custom masking functions required.
 
-### 18. Stack Traces & Caller Information
+### 19. Stack Traces & Caller Information
 Automatic stack trace capture and source location tracking.
 
 ```typescript
@@ -276,7 +289,7 @@ logger.info("Debug", Caller());
 
 **Go slog equivalent**: `runtime.Caller` must be manually invoked.
 
-### 19. Error Boundary Middleware
+### 20. Error Boundary Middleware
 Graceful error handling to prevent handler failures from crashing the application.
 
 ```typescript
@@ -292,7 +305,7 @@ const logger = New(new MiddlewareHandler({
 
 **Go slog equivalent**: Manual recover/panic handling in custom wrappers.
 
-### 20. SQL Query Helpers
+### 21. SQL Query Helpers
 Structured logging helpers for database operations.
 
 ```typescript
@@ -306,7 +319,7 @@ logger.info("Query executed", ...SqlQuery({
 
 **Go slog equivalent**: Manual attribute construction for SQL logging.
 
-### 21. Safe Circular Reference Handling
+### 22. Safe Circular Reference Handling
 Automatic detection and handling of circular object references in logged data.
 
 ```typescript

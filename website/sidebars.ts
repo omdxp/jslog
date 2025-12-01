@@ -28,6 +28,7 @@ const sidebars: SidebarsConfig = {
       label: "Advanced Features",
       items: [
         "advanced/source-location",
+        "advanced/ring-buffer-handler",
         "advanced/file-handler",
         "advanced/color-handler",
         "advanced/pretty-handler",

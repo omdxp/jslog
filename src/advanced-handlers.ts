@@ -1081,3 +1081,126 @@ export class PrettyHandler implements Handler {
     }
   }
 }
+
+/**
+ * Configuration options for RingBufferHandler.
+ */
+export interface RingBufferHandlerOptions {
+  /** Maximum number of records to keep in memory (default: 1000) */
+  limit?: number;
+}
+
+/**
+ * RingBufferHandler stores log records in a circular buffer in memory.
+ *
+ * It is useful for keeping a history of recent logs that can be inspected
+ * programmatically or flushed to another handler upon an error (Flight Recorder pattern).
+ *
+ * @example
+ * ```typescript
+ * const ring = new RingBufferHandler({ limit: 100 });
+ * const logger = new Logger(ring);
+ *
+ * logger.info("step 1");
+ * logger.info("step 2");
+ *
+ * // Later, inspect records
+ * const records = ring.getRecords();
+ * console.log(records.length); // 2
+ *
+ * // Or flush to console on error
+ * if (errorOccurred) {
+ *   ring.flush(new TextHandler());
+ * }
+ * ```
+ */
+export class RingBufferHandler implements Handler {
+  private records: Record[];
+  private limit: number;
+  private attrs: Attr[] = [];
+  private groups: string[] = [];
+
+  constructor(options: RingBufferHandlerOptions = {}, records?: Record[]) {
+    this.limit = options.limit || 1000;
+    this.records = records || [];
+  }
+
+  enabled(level: Level): boolean {
+    return true; // Always capture everything
+  }
+
+  handle(record: Record): void {
+    const resolvedAttrs: Attr[] = [];
+
+    // Helper to apply groups
+    const applyGroup = (attr: Attr): Attr => {
+      if (this.groups.length === 0) return attr;
+      return {
+        key: `${this.groups.join(".")}.${attr.key}`,
+        value: attr.value,
+      };
+    };
+
+    // Handler attributes
+    for (const attr of this.attrs) {
+      resolvedAttrs.push(applyGroup(attr));
+    }
+
+    // Record attributes
+    for (const attr of record.attrs) {
+      resolvedAttrs.push(applyGroup(attr));
+    }
+
+    const storedRecord: Record = {
+      ...record,
+      attrs: resolvedAttrs,
+    };
+
+    this.records.push(storedRecord);
+    if (this.records.length > this.limit) {
+      this.records.shift();
+    }
+  }
+
+  withAttrs(attrs: Attr[]): Handler {
+    const h = new RingBufferHandler({ limit: this.limit }, this.records);
+    h.attrs = [...this.attrs, ...attrs];
+    h.groups = [...this.groups];
+    return h;
+  }
+
+  withGroup(name: string): Handler {
+    const h = new RingBufferHandler({ limit: this.limit }, this.records);
+    h.attrs = [...this.attrs];
+    h.groups = [...this.groups, name];
+    return h;
+  }
+
+  /**
+   * Flushes all stored records to the target handler.
+   *
+   * @param handler - The target handler to write records to
+   */
+  flush(handler: Handler): void {
+    for (const record of this.records) {
+      if (handler.enabled(record.level)) {
+        handler.handle(record);
+      }
+    }
+  }
+
+  /**
+   * Clears all stored records.
+   */
+  clear(): void {
+    // We need to clear the shared array
+    this.records.length = 0;
+  }
+
+  /**
+   * Returns a copy of the stored records.
+   */
+  getRecords(): Record[] {
+    return [...this.records];
+  }
+}
