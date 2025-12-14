@@ -29,6 +29,7 @@ const sidebars: SidebarsConfig = {
       items: [
         "advanced/source-location",
         "advanced/ring-buffer-handler",
+        "advanced/circuit-breaker-handler",
         "advanced/file-handler",
         "advanced/color-handler",
         "advanced/pretty-handler",

@@ -70,6 +70,7 @@ export {
   FilterHandler,
   ColorHandler,
   PrettyHandler,
+  CircuitBreakerHandler,
   type FileHandlerOptions,
   type BufferedHandlerOptions,
   type SamplingHandlerOptions,
@@ -78,6 +79,7 @@ export {
   type PrettyHandlerOptions,
   RingBufferHandler,
   type RingBufferHandlerOptions,
+  type CircuitBreakerHandlerOptions,
 } from "./advanced-handlers";
 
 // Async & Middleware support (composition FTW!)

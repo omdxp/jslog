@@ -121,6 +121,22 @@ if (somethingWentWrong) {
 
 **Go slog equivalent**: No built-in support for in-memory ring buffers or flight recorder patterns.
 
+### 8. Circuit Breaker Handler
+Prevent cascading failures when a handler starts throwing (disk full, broken stream, flaky destination). After repeated failures, the circuit opens for a cooldown period and logs are routed to a fallback handler (or dropped).
+
+```typescript
+const logger = New(new CircuitBreakerHandler({
+  handler: new FileHandler({ filepath: './logs/app.log' }),
+  fallbackHandler: new TextHandler(),
+  failureThreshold: 3,
+  cooldownMs: 10_000,
+}));
+
+logger.info('hello');
+```
+
+**Go slog equivalent**: Requires custom wrappers and error handling; no built-in circuit breaker abstraction.
+
 ### 8. AsyncHandler
 Non-blocking log operations with internal buffering and error handling.
 

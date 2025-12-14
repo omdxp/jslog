@@ -168,6 +168,20 @@ const tests = [
       "This should NOT have source",
     ],
   },
+  {
+    name: "Circuit Breaker Tests",
+    script: "src/examples/circuit-breaker-handler.ts",
+    expectations: [
+      "Circuit Breaker Tests",
+      "FALLBACK:one",
+      "FALLBACK:two",
+      "FALLBACK:three",
+      "STATS:open=true",
+      "STATS:errors=2",
+      "STATS:fallback=3",
+      "STATS:dropped=0",
+    ],
+  },
 ];
 
 function runTest(test) {

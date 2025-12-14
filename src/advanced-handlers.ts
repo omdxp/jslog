@@ -1204,3 +1204,192 @@ export class RingBufferHandler implements Handler {
     return [...this.records];
   }
 }
+
+/**
+ * Configuration options for CircuitBreakerHandler.
+ */
+export interface CircuitBreakerHandlerOptions {
+  /** The primary handler that may fail (throw) */
+  handler: Handler;
+  /** Optional fallback handler used when the circuit is open or primary fails */
+  fallbackHandler?: Handler;
+  /** Number of consecutive failures before opening the circuit (default: 5) */
+  failureThreshold?: number;
+  /** How long to keep the circuit open after tripping (default: 10_000ms) */
+  cooldownMs?: number;
+  /** Optional callback invoked when primary handler throws */
+  onError?: (error: unknown, record: Record) => void;
+}
+
+interface CircuitBreakerState {
+  consecutiveFailures: number;
+  openUntilMs: number;
+  totalErrors: number;
+  dropped: number;
+  fallbackUsed: number;
+}
+
+/**
+ * CircuitBreakerHandler wraps a handler and prevents cascading failures.
+ *
+ * If the primary handler throws repeatedly, the circuit opens for a cooldown
+ * period and logs are routed to the fallback handler (if provided) or dropped.
+ *
+ * This is especially useful when writing to a flaky destination (network, disk,
+ * overloaded stream) where you prefer degraded logging over process crashes.
+ *
+ * @example
+ * ```typescript
+ * const handler = new CircuitBreakerHandler({
+ *   handler: new FileHandler({ filepath: './logs/app.log' }),
+ *   fallbackHandler: new TextHandler(),
+ *   failureThreshold: 3,
+ *   cooldownMs: 10_000,
+ * });
+ * const logger = new Logger(handler);
+ * logger.info('hello');
+ * ```
+ */
+export class CircuitBreakerHandler implements Handler {
+  private handler: Handler;
+  private fallbackHandler?: Handler;
+  private failureThreshold: number;
+  private cooldownMs: number;
+  private onError?: (error: unknown, record: Record) => void;
+  private state: CircuitBreakerState;
+
+  constructor(options: CircuitBreakerHandlerOptions, state?: CircuitBreakerState) {
+    this.handler = options.handler;
+    this.fallbackHandler = options.fallbackHandler;
+    this.failureThreshold = options.failureThreshold ?? 5;
+    this.cooldownMs = options.cooldownMs ?? 10_000;
+    this.onError = options.onError;
+    this.state =
+      state ??
+      {
+        consecutiveFailures: 0,
+        openUntilMs: 0,
+        totalErrors: 0,
+        dropped: 0,
+        fallbackUsed: 0,
+      };
+  }
+
+  enabled(level: Level): boolean {
+    if (this.isOpen()) {
+      return this.fallbackHandler ? this.fallbackHandler.enabled(level) : false;
+    }
+    return this.handler.enabled(level);
+  }
+
+  needsSource(): boolean {
+    if (this.isOpen()) {
+      return this.fallbackHandler
+        ? (this.fallbackHandler.needsSource?.() ?? false)
+        : false;
+    }
+    return this.handler.needsSource?.() ?? false;
+  }
+
+  handle(record: Record): void {
+    if (this.isOpen()) {
+      this.routeToFallback(record);
+      return;
+    }
+
+    try {
+      this.handler.handle(record);
+      this.state.consecutiveFailures = 0;
+    } catch (error) {
+      this.state.totalErrors++;
+      this.state.consecutiveFailures++;
+      if (this.onError) {
+        try {
+          this.onError(error, record);
+        } catch {
+          // ignore user callback errors
+        }
+      }
+
+      if (this.state.consecutiveFailures >= this.failureThreshold) {
+        this.state.openUntilMs = Date.now() + this.cooldownMs;
+      }
+
+      this.routeToFallback(record);
+    }
+  }
+
+  withAttrs(attrs: Attr[]): Handler {
+    const nextPrimary = this.handler.withAttrs(attrs);
+    const nextFallback = this.fallbackHandler
+      ? this.fallbackHandler.withAttrs(attrs)
+      : undefined;
+
+    return new CircuitBreakerHandler(
+      {
+        handler: nextPrimary,
+        fallbackHandler: nextFallback,
+        failureThreshold: this.failureThreshold,
+        cooldownMs: this.cooldownMs,
+        onError: this.onError,
+      },
+      this.state
+    );
+  }
+
+  withGroup(name: string): Handler {
+    const nextPrimary = this.handler.withGroup(name);
+    const nextFallback = this.fallbackHandler
+      ? this.fallbackHandler.withGroup(name)
+      : undefined;
+
+    return new CircuitBreakerHandler(
+      {
+        handler: nextPrimary,
+        fallbackHandler: nextFallback,
+        failureThreshold: this.failureThreshold,
+        cooldownMs: this.cooldownMs,
+        onError: this.onError,
+      },
+      this.state
+    );
+  }
+
+  /** Returns current circuit breaker statistics. */
+  getStats(): {
+    open: boolean;
+    consecutiveFailures: number;
+    openUntilMs: number;
+    totalErrors: number;
+    dropped: number;
+    fallbackUsed: number;
+  } {
+    return {
+      open: this.isOpen(),
+      consecutiveFailures: this.state.consecutiveFailures,
+      openUntilMs: this.state.openUntilMs,
+      totalErrors: this.state.totalErrors,
+      dropped: this.state.dropped,
+      fallbackUsed: this.state.fallbackUsed,
+    };
+  }
+
+  private isOpen(): boolean {
+    return this.state.openUntilMs > Date.now();
+  }
+
+  private routeToFallback(record: Record): void {
+    if (!this.fallbackHandler) {
+      this.state.dropped++;
+      return;
+    }
+
+    this.state.fallbackUsed++;
+    try {
+      this.fallbackHandler.handle(record);
+    } catch {
+      // Last resort: never let logging crash the app
+      this.state.dropped++;
+    }
+  }
+}
