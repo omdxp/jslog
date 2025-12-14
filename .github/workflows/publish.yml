@@ -74,7 +74,13 @@ jobs:
         echo "Version match confirmed!"
 
     - name: Publish to NPM
-      run: npm publish --provenance --access public
+      env:
+        # Ensure npm does not pick up any token-based auth from runner/global config.
+        # Trusted publishing uses OIDC via `id-token: write`.
+        NPM_CONFIG_USERCONFIG: ${{ runner.temp }}/.npmrc
+      run: |
+        echo "registry=https://registry.npmjs.org/" > "$NPM_CONFIG_USERCONFIG"
+        npm publish --provenance --access public
 
     - name: Generate Release Notes
       id: release_notes
